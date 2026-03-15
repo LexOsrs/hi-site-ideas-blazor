@@ -1,0 +1,41 @@
+@page "/{Slug}"
+@using hi_site_ideas_blazor.Models
+@using Microsoft.AspNetCore.Components
+
+<PageTitle>@(idea?.Title ?? "Not Found") — Hardly Iron</PageTitle>
+
+@if (idea is null)
+{
+    <p>Idea not found.</p>
+}
+else
+{
+    <div class="idea-page">
+        <a href="/" class="back-link">← All Ideas</a>
+        <h1>@idea.Title</h1>
+        <p class="idea-desc">@idea.Description</p>
+        @if (idea.Tags.Length > 0)
+        {
+            <div class="tags" style="margin-bottom: 24px;">
+                @foreach (var tag in idea.Tags)
+                {
+                    <span class="tag">@tag</span>
+                }
+            </div>
+        }
+        <div class="demo-area">
+            <DynamicComponent Type="@idea.Component" />
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = "";
+
+    private Idea? idea;
+
+    protected override void OnParametersSet()
+    {
+        idea = IdeaRegistry.FindBySlug(Slug);
+    }
+}

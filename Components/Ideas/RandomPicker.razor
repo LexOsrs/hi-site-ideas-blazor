@@ -1,0 +1,98 @@
+@using hi_site_ideas_blazor.Models
+
+<div class="prizes-section">
+    <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+        </svg>
+        Prizes
+    </h3>
+    <div class="prize-list">
+        @for (var i = 0; i < Giveaway.Prizes.Count; i++)
+        {
+            var prize = Giveaway.Prizes[i];
+            var autoWinner = prize.Count == null ? GetPrizeWinner(prize) : null;
+            <div class="prize-row">
+                <span class="prize-label">@prize.Label@(prize.Count.HasValue ? $" (×{prize.Count})" : "")</span>
+                <span class="prize-reward">@prize.Reward</span>
+                <span class="prize-winner">
+                    @if (autoWinner != null)
+                    {
+                        <span class="winner-name">@autoWinner</span>
+                    }
+                    @if (prize.Count.HasValue && Winners.Count > 0)
+                    {
+                        <span class="winner-name @(_rolling ? "rolling" : "")">
+                            @string.Join(", ", Winners.Take(prize.Count.Value))
+                        </span>
+                    }
+                </span>
+            </div>
+        }
+    </div>
+    @if (Giveaway.Status != GiveawayStatus.Active && _totalRandomSlots > 0)
+    {
+        <button class="roll-btn" @onclick="RollRandom" disabled="@_rolling">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22"/><path d="m18 2 4 4-4 4"/><path d="M2 6h1.9c1.5 0 2.9.9 3.6 2.2"/><path d="M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8"/><path d="m18 14 4 4-4 4"/>
+            </svg>
+            @if (_rolling) { <text>Rolling...</text> }
+            else if (Winners.Count > 0) { <text>Re-roll Random Winners</text> }
+            else { <text>Roll Random Winners</text> }
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public Giveaway Giveaway { get; set; } = new();
+    [Parameter] public List<string> Winners { get; set; } = [];
+    [Parameter] public EventCallback<List<string>> WinnersChanged { get; set; }
+
+    private bool _rolling;
+    private int _totalRandomSlots => Giveaway.Prizes.Where(p => p.Count.HasValue).Sum(p => p.Count!.Value);
+
+    private List<Guess> RankedGuessers => Giveaway.DropKc.HasValue
+        ? Giveaway.Guesses.OrderBy(g => Math.Abs(g.GuessKc - Giveaway.DropKc.Value)).ToList()
+        : [];
+
+    private string? GetPrizeWinner(Prize prize)
+    {
+        if (!Giveaway.DropKc.HasValue || RankedGuessers.Count == 0) return null;
+        return prize.Type switch
+        {
+            "exact" => RankedGuessers[0].GuessKc == Giveaway.DropKc.Value ? RankedGuessers[0].Name : "No one",
+            "closest" => RankedGuessers[0].Name,
+            "2nd" => RankedGuessers.Count > 1 ? RankedGuessers[1].Name : null,
+            "3rd" => RankedGuessers.Count > 2 ? RankedGuessers[2].Name : null,
+            _ => null,
+        };
+    }
+
+    private async Task RollRandom()
+    {
+        _rolling = true;
+        var nonRandomWinners = Giveaway.Prizes
+            .Where(p => p.Count == null)
+            .Select(p => GetPrizeWinner(p))
+            .Where(n => n != null)
+            .ToHashSet();
+
+        var eligible = Giveaway.Guesses
+            .Select(g => g.Name)
+            .Where(n => !nonRandomWinners.Contains(n))
+            .ToList();
+
+        var rng = new Random();
+        for (var tick = 0; tick < 20; tick++)
+        {
+            var preview = eligible.OrderBy(_ => rng.Next()).Take(_totalRandomSlots).ToList();
+            await WinnersChanged.InvokeAsync(preview);
+            StateHasChanged();
+            await Task.Delay(80);
+        }
+
+        var final = eligible.OrderBy(_ => rng.Next()).Take(_totalRandomSlots).ToList();
+        await WinnersChanged.InvokeAsync(final);
+        _rolling = false;
+    }
+}

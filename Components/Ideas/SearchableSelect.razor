@@ -1,0 +1,100 @@
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="searchable-select" @ref="_container">
+    <div class="ss-input-wrap" @onclick="Open">
+        <svg class="ss-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+        <input @bind-value="InputDisplay"
+               @bind-value:event="oninput"
+               @onfocus="HandleFocus"
+               placeholder="@Placeholder" />
+    </div>
+    @if (_open)
+    {
+        <div class="ss-dropdown">
+            @if (_filtered.Count == 0 && !AllowCustom)
+            {
+                <div class="ss-empty">No matches</div>
+            }
+            @if (_filtered.Count == 0 && AllowCustom && !string.IsNullOrEmpty(_query))
+            {
+                <div class="ss-option ss-custom" @onclick="() => SelectCustom(_query)">
+                    Use "@_query" <span class="ss-no-sync">· @CustomHint</span>
+                </div>
+            }
+            @foreach (var option in _filtered)
+            {
+                var opt = option;
+                <div class="ss-option @(opt == Value ? "selected" : "")"
+                     @onclick="() => Select(opt)">
+                    @opt
+                </div>
+            }
+            @if (AllowCustom && !string.IsNullOrEmpty(_query) && _filtered.Count > 0 && !_filtered.Any(o => o.Equals(_query, StringComparison.OrdinalIgnoreCase)))
+            {
+                <div class="ss-option ss-custom" @onclick="() => SelectCustom(_query)">
+                    Use "@_query" <span class="ss-no-sync">· @CustomHint</span>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = "";
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public IReadOnlyList<string> Options { get; set; } = [];
+    [Parameter] public string Placeholder { get; set; } = "";
+    [Parameter] public bool AllowCustom { get; set; }
+    [Parameter] public string CustomHint { get; set; } = "won't auto-sync KC";
+
+    private bool _open;
+    private string _query = "";
+    private ElementReference _container;
+    private List<string> _filtered = [];
+
+    private string InputDisplay
+    {
+        get => _open ? _query : Value;
+        set
+        {
+            _query = value;
+            if (!_open) _open = true;
+            if (AllowCustom) ValueChanged.InvokeAsync(value);
+            UpdateFiltered();
+        }
+    }
+
+    protected override void OnParametersSet() => UpdateFiltered();
+
+    private void UpdateFiltered()
+    {
+        _filtered = Options
+            .Where(o => o.Contains(_query, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private void Open() => _open = true;
+
+    private void HandleFocus()
+    {
+        _open = true;
+        _query = "";
+        UpdateFiltered();
+    }
+
+    private async Task Select(string value)
+    {
+        _open = false;
+        _query = "";
+        await ValueChanged.InvokeAsync(value);
+    }
+
+    private async Task SelectCustom(string value)
+    {
+        _open = false;
+        _query = "";
+        await ValueChanged.InvokeAsync(value);
+    }
+}

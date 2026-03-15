@@ -1,0 +1,87 @@
+@using hi_site_ideas_blazor.Models
+
+<div class="giveaway-card giveaway-@Giveaway.Status.ToString().ToLower()">
+    <div class="giveaway-header-wrap">
+        <button class="giveaway-header" @onclick="Toggle">
+            @if (!string.IsNullOrEmpty(Giveaway.Item))
+            {
+                <img class="giveaway-icon" src="@Giveaway.ImageUrl" alt="@Giveaway.Title" />
+            }
+            <div class="giveaway-header-left">
+                <h2>@Giveaway.Title</h2>
+                <p class="giveaway-meta"><strong>@Giveaway.Player</strong> · @Giveaway.Boss · @Giveaway.Guesses.Count guesses</p>
+            </div>
+            <div class="giveaway-header-right">
+                <span class="status-badge status-@Giveaway.Status.ToString().ToLower()">
+                    @StatusLabel
+                </span>
+                <svg class="expand-chevron @(_open ? "open" : "")" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m6 9 6 6 6-6"/>
+                </svg>
+            </div>
+        </button>
+        <button class="edit-btn" @onclick="ToggleEdit" title="Edit giveaway">
+            @if (_editing)
+            {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                </svg>
+            }
+            else
+            {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>
+                </svg>
+            }
+        </button>
+    </div>
+    @if (_open)
+    {
+        <div class="giveaway-body">
+            @if (_editing)
+            {
+                <EditPanel Giveaway="@Giveaway" OnSave="HandleSave" OnCancel="() => _editing = false" />
+            }
+            else
+            {
+                <GuessBars Giveaway="@Giveaway" HoveredName="@_hoveredName" HoveredNameChanged="name => { _hoveredName = name; StateHasChanged(); }" RandomWinners="@_randomWinners" />
+                <RandomPicker Giveaway="@Giveaway" Winners="@_randomWinners" WinnersChanged="w => { _randomWinners = w; StateHasChanged(); }" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public Giveaway Giveaway { get; set; } = new();
+    [Parameter] public bool DefaultOpen { get; set; }
+    [Parameter] public EventCallback<Giveaway> OnUpdate { get; set; }
+
+    private bool _open;
+    private bool _editing;
+    private string? _hoveredName;
+    private List<string> _randomWinners = [];
+
+    private string StatusLabel => Giveaway.Status switch
+    {
+        GiveawayStatus.Active => "In Progress",
+        GiveawayStatus.Dropped => "Drop Received",
+        GiveawayStatus.Completed => "Completed",
+        _ => ""
+    };
+
+    protected override void OnInitialized() => _open = DefaultOpen;
+
+    private void Toggle() => _open = !_open;
+
+    private void ToggleEdit()
+    {
+        _editing = !_editing;
+        _open = true;
+    }
+
+    private async Task HandleSave(Giveaway draft)
+    {
+        await OnUpdate.InvokeAsync(draft);
+        _editing = false;
+    }
+}

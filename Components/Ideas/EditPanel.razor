@@ -1,0 +1,172 @@
+@using hi_site_ideas_blazor.Models
+
+<div class="edit-panel">
+    <div class="edit-row">
+        <label>Title</label>
+        <input @bind="Draft.Title" />
+    </div>
+    <div class="edit-row-group">
+        <div class="edit-row">
+            <label>Boss / Activity</label>
+            <SearchableSelect Value="@Draft.Boss"
+                              ValueChanged="OnBossChanged"
+                              Options="@_bossNames"
+                              Placeholder="Search bosses..."
+                              AllowCustom="true"
+                              CustomHint="won't auto-sync KC" />
+        </div>
+        <div class="edit-row">
+            <label>Player</label>
+            <SearchableSelect Value="@Draft.Player"
+                              ValueChanged="v => { Draft.Player = v; StateHasChanged(); }"
+                              Options="@GiveawayConstants.Members"
+                              Placeholder="Search members..." />
+        </div>
+    </div>
+    <div class="edit-row">
+        <label>Item</label>
+        <div class="edit-item-row">
+            <SearchableSelect Value="@Draft.Item"
+                              ValueChanged="v => { Draft.Item = v; StateHasChanged(); }"
+                              Options="@_itemOptions"
+                              Placeholder="Search items..."
+                              AllowCustom="true"
+                              CustomHint="won't auto-track" />
+            @if (!string.IsNullOrEmpty(Draft.Item))
+            {
+                <img class="edit-item-preview" src="@Draft.ImageUrl" alt="@Draft.Item" />
+            }
+        </div>
+    </div>
+    <div class="edit-row-group">
+        @if (!IsNew)
+        {
+            <div class="edit-row">
+                <label>Status</label>
+                <select @bind="StatusString">
+                    <option value="Active">In Progress</option>
+                    <option value="Dropped">Drop Received</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+        }
+        <div class="edit-row">
+            <label>Start KC</label>
+            <input type="number" @bind="Draft.StartKc" />
+        </div>
+        @if (!IsNew)
+        {
+            <div class="edit-row">
+                <label>Drop KC</label>
+                <input type="number" @bind="DropKcInput" placeholder="—" />
+            </div>
+        }
+    </div>
+
+    <div class="edit-prizes">
+        <h4>Prizes</h4>
+        @for (var i = 0; i < Draft.Prizes.Count; i++)
+        {
+            var idx = i;
+            var prize = Draft.Prizes[idx];
+            <div class="edit-prize-row">
+                <select value="@prize.Type" @onchange="e => UpdatePrizeType(idx, e.Value?.ToString() ?? string.Empty)">
+                    @foreach (var pt in GiveawayConstants.PrizeTypes)
+                    {
+                        <option value="@pt.Value">@pt.Label</option>
+                    }
+                </select>
+                <input @bind="prize.Reward" placeholder="Reward" />
+                @if (prize.Type == "random")
+                {
+                    <input type="number" min="1" class="count-input"
+                           @bind="prize.Count" />
+                }
+                <button class="edit-icon-btn" @onclick="() => RemovePrize(idx)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                    </svg>
+                </button>
+            </div>
+        }
+        <button class="add-prize-btn" @onclick="AddPrize">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/><path d="M12 5v14"/>
+            </svg>
+            Add Prize
+        </button>
+    </div>
+
+    <div class="edit-actions">
+        <button class="save-btn" @onclick="Save">Save</button>
+        <button class="cancel-btn" @onclick="Cancel">Cancel</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Giveaway Giveaway { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+    [Parameter] public EventCallback<Giveaway> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private Giveaway Draft = new();
+    private string[] _bossNames = [];
+    private string[] _itemOptions = [];
+
+    private string StatusString
+    {
+        get => Draft.Status.ToString();
+        set => Draft.Status = Enum.Parse<GiveawayStatus>(value);
+    }
+
+    private int? DropKcInput
+    {
+        get => Draft.DropKc;
+        set => Draft.DropKc = value;
+    }
+
+    protected override void OnParametersSet()
+    {
+        Draft = Giveaway.Clone();
+        _bossNames = GiveawayConstants.Bosses.Select(b => b.Name).ToArray();
+        UpdateItemOptions();
+    }
+
+    private void OnBossChanged(string boss)
+    {
+        Draft.Boss = boss;
+        UpdateItemOptions();
+        StateHasChanged();
+    }
+
+    private void UpdateItemOptions()
+    {
+        var boss = GiveawayConstants.Bosses.FirstOrDefault(b => b.Name == Draft.Boss);
+        _itemOptions = boss?.Items ?? [];
+    }
+
+    private void UpdatePrizeType(int idx, string type)
+    {
+        var prize = Draft.Prizes[idx];
+        prize.Type = type;
+        var label = GiveawayConstants.PrizeTypes.FirstOrDefault(t => t.Value == type).Label ?? type;
+        prize.Label = label;
+        if (type == "random")
+            prize.Count ??= 1;
+        else
+            prize.Count = null;
+    }
+
+    private void AddPrize()
+    {
+        Draft.Prizes.Add(new Prize { Label = "Closest guess", Type = "closest", Reward = "" });
+    }
+
+    private void RemovePrize(int idx)
+    {
+        Draft.Prizes.RemoveAt(idx);
+    }
+
+    private async Task Save() => await OnSave.InvokeAsync(Draft);
+    private async Task Cancel() => await OnCancel.InvokeAsync();
+}

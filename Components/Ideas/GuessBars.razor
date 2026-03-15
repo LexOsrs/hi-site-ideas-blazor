@@ -1,0 +1,106 @@
+@using hi_site_ideas_blazor.Models
+
+<div class="guess-viz">
+    <div class="viz-track">
+        <div class="viz-marker viz-start" style="left: @ToPercent(Giveaway.StartKc)%">
+            <div class="marker-line"></div>
+            <div class="marker-label">Start<br />@Giveaway.StartKc.ToString("N0")</div>
+        </div>
+        <div class="viz-marker viz-current @(Giveaway.DropKc.HasValue ? "viz-drop" : "")" style="left: @ToPercent(Giveaway.CurrentKc)%">
+            <div class="marker-line"></div>
+            <div class="marker-label">@(Giveaway.DropKc.HasValue ? "Drop" : "Current")<br />@Giveaway.CurrentKc.ToString("N0")</div>
+        </div>
+        @if (Giveaway.StartKc < Giveaway.CurrentKc)
+        {
+            <div class="viz-progress" style="left: @ToPercent(Giveaway.StartKc)%; width: @(ToPercent(Giveaway.CurrentKc) - ToPercent(Giveaway.StartKc))%"></div>
+        }
+        @foreach (var g in Sorted)
+        {
+            var name = g.Name;
+            <div class="viz-guess @GetDotClass(name)"
+                 style="left: @ToPercent(g.GuessKc)%"
+                 title="@name: @g.GuessKc.ToString("N0")"
+                 @onmouseenter="() => SetHovered(name)"
+                 @onmouseleave="() => SetHovered(null)">
+            </div>
+        }
+    </div>
+    <div class="guess-list">
+        @foreach (var g in Sorted)
+        {
+            var name = g.Name;
+            var diff = Giveaway.DropKc.HasValue ? (int?)Math.Abs(g.GuessKc - Giveaway.DropKc.Value) : null;
+            <div class="guess-row @GetRowClass(name)"
+                 @onmouseenter="() => SetHovered(name)"
+                 @onmouseleave="() => SetHovered(null)">
+                <span class="guess-name">
+                    @if (name == ClosestName)
+                    {
+                        <svg class="crown" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2 20h20v2H2zm1-2h18l-2-14-5 7-3-8-3 8-5-7z"/></svg>
+                    }
+                    @name
+                </span>
+                <span class="guess-kc">@g.GuessKc.ToString("N0")</span>
+                @if (diff.HasValue)
+                {
+                    <span class="guess-diff">@(diff == 0 ? "Exact!" : $"±{diff.Value:N0}")</span>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public Giveaway Giveaway { get; set; } = new();
+    [Parameter] public string? HoveredName { get; set; }
+    [Parameter] public EventCallback<string?> HoveredNameChanged { get; set; }
+    [Parameter] public List<string> RandomWinners { get; set; } = [];
+
+    private List<Guess> Sorted => Giveaway.Guesses.OrderBy(g => g.GuessKc).ToList();
+
+    private List<Guess> RankedByCloseness => Giveaway.DropKc.HasValue
+        ? Giveaway.Guesses.OrderBy(g => Math.Abs(g.GuessKc - Giveaway.DropKc.Value)).ToList()
+        : [];
+
+    private string? ClosestName => RankedByCloseness.FirstOrDefault()?.Name;
+    private string? SecondName => RankedByCloseness.Skip(1).FirstOrDefault()?.Name;
+
+    private double _min, _max, _range;
+
+    protected override void OnParametersSet()
+    {
+        var allKcs = Giveaway.Guesses.Select(g => (double)g.GuessKc)
+            .Append(Giveaway.StartKc)
+            .Append(Giveaway.CurrentKc);
+        if (Giveaway.DropKc.HasValue) allKcs = allKcs.Append(Giveaway.DropKc.Value);
+
+        var list = allKcs.ToList();
+        _min = list.Min() - 20;
+        _max = list.Max() + 20;
+        _range = _max - _min;
+    }
+
+    private double ToPercent(int kc) => (kc - _min) / _range * 100;
+
+    private async Task SetHovered(string? name) => await HoveredNameChanged.InvokeAsync(name);
+
+    private string GetDotClass(string name)
+    {
+        var classes = new List<string>();
+        if (name == ClosestName) classes.Add("closest");
+        else if (name == SecondName) classes.Add("second");
+        if (RandomWinners.Contains(name)) classes.Add("random-winner");
+        if (name == HoveredName) classes.Add("hovered");
+        return string.Join(" ", classes);
+    }
+
+    private string GetRowClass(string name)
+    {
+        var classes = new List<string>();
+        if (name == ClosestName) classes.Add("closest");
+        else if (name == SecondName) classes.Add("second");
+        if (RandomWinners.Contains(name)) classes.Add("random-winner");
+        if (name == HoveredName) classes.Add("hovered");
+        return string.Join(" ", classes);
+    }
+}

@@ -1,0 +1,28 @@
+@page "/"
+@using hi_site_ideas_blazor.Models
+
+<PageTitle>Hardly Iron — Site Ideas</PageTitle>
+
+<header class="header">
+    <h1>Hardly Iron</h1>
+    <p class="subtitle">Clan Website Ideas</p>
+</header>
+
+<div class="idea-grid">
+    @foreach (var idea in IdeaRegistry.All)
+    {
+        <a href="/@idea.Slug" class="idea-card">
+            <h2>@idea.Title</h2>
+            <p>@idea.Description</p>
+            @if (idea.Tags.Length > 0)
+            {
+                <div class="tags">
+                    @foreach (var tag in idea.Tags)
+                    {
+                        <span class="tag">@tag</span>
+                    }
+                </div>
+            }
+        </a>
+    }
+</div>
