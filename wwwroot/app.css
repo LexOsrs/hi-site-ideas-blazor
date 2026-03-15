@@ -1,3 +1,5 @@
+*:focus-visible { outline: none; }
+
 /* ========== OSRS Dark Theme Variables ========== */
 :root {
   --bg: #0f0d09;
