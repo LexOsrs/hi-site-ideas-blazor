@@ -23,7 +23,7 @@ else
 
 var app = builder.Build();
 
-// Ensure DB exists and seed members
+// Ensure DB exists and seed data
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -34,6 +34,12 @@ using (var scope = app.Services.CreateScope())
         db.Members.AddRange(
             GiveawayConstants.Members.Select(name => new Member { DisplayName = name })
         );
+        db.SaveChanges();
+    }
+
+    if (!db.Giveaways.Any())
+    {
+        db.Giveaways.AddRange(GiveawayConstants.GetSeedGiveaways());
         db.SaveChanges();
     }
 }

@@ -57,18 +57,18 @@
 @code {
     private string _tab = "active";
     private bool _showModal;
-    private List<Giveaway> _giveaways = GiveawayConstants.GetInitialGiveaways();
+    private List<Giveaway> _giveaways = [];
     private List<string> _memberNames = [];
 
     protected override async Task OnInitializedAsync()
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         _memberNames = await db.Members.OrderBy(m => m.DisplayName).Select(m => m.DisplayName).ToListAsync();
+        _giveaways = await db.Giveaways.Include(g => g.Prizes).Include(g => g.Guesses).OrderByDescending(g => g.Id).ToListAsync();
     }
 
     private Giveaway _blankGiveaway => new()
     {
-        Id = $"new-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}",
         Title = "",
         Boss = "",
         Player = "",
@@ -83,14 +83,40 @@
     private List<Giveaway> Active => _giveaways.Where(g => g.Status == GiveawayStatus.Active).ToList();
     private List<Giveaway> Completed => _giveaways.Where(g => g.Status != GiveawayStatus.Active).ToList();
 
-    private void UpdateGiveaway(Giveaway updated)
+    private async Task UpdateGiveaway(Giveaway updated)
     {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var existing = await db.Giveaways.Include(g => g.Prizes).Include(g => g.Guesses).FirstOrDefaultAsync(g => g.Id == updated.Id);
+        if (existing == null) return;
+
+        existing.Title = updated.Title;
+        existing.Boss = updated.Boss;
+        existing.Player = updated.Player;
+        existing.Item = updated.Item;
+        existing.Status = updated.Status;
+        existing.StartKc = updated.StartKc;
+        existing.CurrentKc = updated.CurrentKc;
+        existing.DropKc = updated.DropKc;
+
+        db.Prizes.RemoveRange(existing.Prizes);
+        existing.Prizes = updated.Prizes.Select(p => new Prize { Label = p.Label, Type = p.Type, Reward = p.Reward, Count = p.Count }).ToList();
+
+        db.Guesses.RemoveRange(existing.Guesses);
+        existing.Guesses = updated.Guesses.Select(g => new Guess { Name = g.Name, GuessKc = g.GuessKc }).ToList();
+
+        await db.SaveChangesAsync();
+
         var idx = _giveaways.FindIndex(g => g.Id == updated.Id);
-        if (idx >= 0) _giveaways[idx] = updated;
+        if (idx >= 0) _giveaways[idx] = existing;
     }
 
-    private void HandleNewSave(Giveaway draft)
+    private async Task HandleNewSave(Giveaway draft)
     {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        db.Giveaways.Add(draft);
+        await db.SaveChangesAsync();
+
         _giveaways.Insert(0, draft);
         _showModal = false;
     }

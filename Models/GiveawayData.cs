@@ -1,8 +1,10 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace hi_site_ideas_blazor.Models;
 
 public class Giveaway
 {
-    public string Id { get; set; } = "";
+    public int Id { get; set; }
     public string Title { get; set; } = "";
     public string Boss { get; set; } = "";
     public string Player { get; set; } = "";
@@ -14,6 +16,7 @@ public class Giveaway
     public List<Prize> Prizes { get; set; } = [];
     public List<Guess> Guesses { get; set; } = [];
 
+    [NotMapped]
     public string ImageUrl => string.IsNullOrEmpty(Item)
         ? ""
         : $"https://oldschool.runescape.wiki/images/{Uri.EscapeDataString(Item.Replace(' ', '_'))}.png";
@@ -38,6 +41,8 @@ public enum GiveawayStatus { Active, Dropped, Completed }
 
 public class Prize
 {
+    public int Id { get; set; }
+    public int GiveawayId { get; set; }
     public string Label { get; set; } = "";
     public string Type { get; set; } = "closest";
     public string Reward { get; set; } = "";
@@ -46,6 +51,8 @@ public class Prize
 
 public class Guess
 {
+    public int Id { get; set; }
+    public int GiveawayId { get; set; }
     public string Name { get; set; } = "";
     public int GuessKc { get; set; }
 }
@@ -191,11 +198,10 @@ public static class GiveawayConstants
         }).ToList();
     }
 
-    public static List<Giveaway> GetInitialGiveaways() =>
+    public static List<Giveaway> GetSeedGiveaways() =>
     [
         new()
         {
-            Id = "cg-seed",
             Title = "Enhanced Crystal Weapon Seed",
             Boss = "Corrupted Gauntlet",
             Player = "Lex 26",
@@ -213,7 +219,6 @@ public static class GiveawayConstants
         },
         new()
         {
-            Id = "zulrah",
             Title = "Zulrah Pet",
             Boss = "Zulrah",
             Player = "Lex 26",
@@ -231,7 +236,6 @@ public static class GiveawayConstants
         },
         new()
         {
-            Id = "hydra-claw",
             Title = "Hydra Claw",
             Boss = "Alchemical Hydra",
             Player = "Omav",
