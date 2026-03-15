@@ -40,7 +40,7 @@
         <div class="giveaway-body">
             @if (_editing)
             {
-                <EditPanel Giveaway="@Giveaway" OnSave="HandleSave" OnCancel="() => _editing = false" />
+                <EditPanel Giveaway="@Giveaway" MemberNames="@MemberNames" OnSave="HandleSave" OnCancel="() => _editing = false" />
             }
             else
             {
@@ -54,6 +54,7 @@
 @code {
     [Parameter] public Giveaway Giveaway { get; set; } = new();
     [Parameter] public bool DefaultOpen { get; set; }
+    [Parameter] public IReadOnlyList<string> MemberNames { get; set; } = [];
     [Parameter] public EventCallback<Giveaway> OnUpdate { get; set; }
 
     private bool _open;

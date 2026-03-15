@@ -1,4 +1,7 @@
 @using hi_site_ideas_blazor.Models
+@using hi_site_ideas_blazor.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
 @rendermode InteractiveServer
 
 <div class="giveaways-demo">
@@ -21,7 +24,7 @@
                         </svg>
                     </button>
                 </div>
-                <EditPanel Giveaway="@_blankGiveaway" IsNew="true" OnSave="HandleNewSave" OnCancel="() => _showModal = false" />
+                <EditPanel Giveaway="@_blankGiveaway" IsNew="true" MemberNames="@_memberNames" OnSave="HandleNewSave" OnCancel="() => _showModal = false" />
             </div>
         </div>
     }
@@ -38,7 +41,7 @@
     <div class="giveaway-list">
         @foreach (var g in (_tab == "active" ? Active : Completed))
         {
-            <GiveawayCard @key="g.Id" Giveaway="@g" DefaultOpen="@(_tab == "active")" OnUpdate="UpdateGiveaway" />
+            <GiveawayCard @key="g.Id" Giveaway="@g" DefaultOpen="@(_tab == "active")" MemberNames="@_memberNames" OnUpdate="UpdateGiveaway" />
         }
         @if (_tab == "active" && Active.Count == 0)
         {
@@ -55,6 +58,13 @@
     private string _tab = "active";
     private bool _showModal;
     private List<Giveaway> _giveaways = GiveawayConstants.GetInitialGiveaways();
+    private List<string> _memberNames = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _memberNames = await db.Members.OrderBy(m => m.DisplayName).Select(m => m.DisplayName).ToListAsync();
+    }
 
     private Giveaway _blankGiveaway => new()
     {

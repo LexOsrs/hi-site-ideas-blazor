@@ -19,7 +19,7 @@
             <label>Player</label>
             <SearchableSelect Value="@Draft.Player"
                               ValueChanged="v => { Draft.Player = v; StateHasChanged(); }"
-                              Options="@GiveawayConstants.Members"
+                              Options="@MemberNames"
                               Placeholder="Search members..." />
         </div>
     </div>
@@ -106,6 +106,7 @@
 @code {
     [Parameter] public Giveaway Giveaway { get; set; } = new();
     [Parameter] public bool IsNew { get; set; }
+    [Parameter] public IReadOnlyList<string> MemberNames { get; set; } = [];
     [Parameter] public EventCallback<Giveaway> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 

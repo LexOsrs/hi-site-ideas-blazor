@@ -21,6 +21,13 @@ jobs:
       - name: Publish
         run: dotnet publish --configuration Release --output publish --runtime win-x86 --self-contained false
 
+      - name: Set connection string
+        run: |
+          $json = Get-Content publish/appsettings.json | ConvertFrom-Json
+          $json.ConnectionStrings.SqlServer = "${{ secrets.SQLSERVER_CONN }}"
+          $json | ConvertTo-Json -Depth 10 | Set-Content publish/appsettings.json
+        shell: pwsh
+
       - name: Deploy to MonsterASP.NET
         uses: rasmusbuchholdt/simply-web-deploy@2.1.0
         with:
