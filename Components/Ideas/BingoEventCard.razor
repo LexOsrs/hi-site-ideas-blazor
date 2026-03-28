@@ -1,0 +1,280 @@
+@using hi_site_ideas_blazor.Models
+@using hi_site_ideas_blazor.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
+
+<div class="bingo-event">
+    <div class="bingo-event-header">
+        <div>
+            <h2 class="bingo-event-title">@Event.Title</h2>
+            <p class="bingo-meta">
+                @Event.Teams.Count teams
+                @if (Event.StartsAt.HasValue)
+                {
+                    @: · @Event.StartsAt.Value.ToString("MMM d")
+                    @if (Event.EndsAt.HasValue)
+                    {
+                        @: – @Event.EndsAt.Value.ToString("MMM d")
+                    }
+                }
+            </p>
+        </div>
+        <div class="bingo-event-header-right">
+            <span class="status-badge status-@Event.Status.ToString().ToLower()">
+                @StatusLabel
+            </span>
+            @if (IsAdmin)
+            {
+                <button class="edit-btn-inline" @onclick="ToggleEdit" title="Edit event">
+                    @if (_editing)
+                    {
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                        </svg>
+                    }
+                    else
+                    {
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>
+                        </svg>
+                    }
+                </button>
+            }
+        </div>
+    </div>
+    <div class="bingo-body">
+            @if (_editing)
+            {
+                <BingoEventEditor Event="@Event" OnSave="HandleSave" OnCancel="() => _editing = false" />
+            }
+            else
+            {
+                @if (IsAdmin && PendingSubmissions.Any())
+                {
+                    <div class="pending-review-section">
+                        <h3>
+                            Awaiting Approval
+                            <span class="pending-count">@PendingSubmissions.Count()</span>
+                        </h3>
+                        @foreach (var (sub, tile, team) in PendingSubmissions)
+                        {
+                            <div class="pending-card">
+                                <div class="pending-card-header">
+                                    <span class="team-dot" style="background: @team.Color"></span>
+                                    <span class="pending-tile-name">@tile.Title</span>
+                                    <span class="submission-type-badge @(sub.Type == SubmissionType.Start ? "type-start" : "type-progress")">
+                                        @if (sub.Type == SubmissionType.Start)
+                                        {
+                                            @:START
+                                        }
+                                        else
+                                        {
+                                            @string.Join(", ", sub.Entries.Select(e => $"+{e.Amount} {e.RequirementLabel}"))
+                                        }
+                                    </span>
+                                </div>
+                                <div class="pending-card-body">
+                                    @if (!string.IsNullOrEmpty(sub.ImageUrl))
+                                    {
+                                        <img src="@sub.ImageUrl" alt="@(sub.Caption ?? "Screenshot")" class="pending-thumb" @onclick="() => _lightboxUrl = sub.ImageUrl" />
+                                    }
+                                    <div class="pending-card-info">
+                                        <span class="submission-by">@sub.SubmittedBy</span>
+                                        @if (!string.IsNullOrEmpty(sub.Caption))
+                                        {
+                                            <span class="pending-caption">@sub.Caption</span>
+                                        }
+                                        <span class="submission-date">@sub.SubmittedAt.ToString("MMM d, h:mm tt")</span>
+                                    </div>
+                                    <div class="pending-card-actions">
+                                        <button class="approve-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Approved)">Approve</button>
+                                        <button class="deny-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Denied)">Deny</button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (IsAdmin && Event.Teams.Count > 0)
+                {
+                    <div class="team-selector">
+                        <button class="team-chip @(_selectedTeamId == null ? "active" : "")"
+                                @onclick="() => _selectedTeamId = null">All Teams</button>
+                        @foreach (var team in Event.Teams)
+                        {
+                            <button class="team-chip @(_selectedTeamId == team.Id ? "active" : "")"
+                                    style="@(_selectedTeamId == team.Id ? $"border-color: {team.Color}; color: {team.Color}" : "")"
+                                    @onclick="() => _selectedTeamId = team.Id">
+                                <span class="team-dot" style="background: @team.Color"></span>
+                                @team.Name
+                            </button>
+                        }
+                    </div>
+                }
+
+                <BingoBoard Event="@Event" SelectedTeamId="@EffectiveTeamId" IsAdmin="@IsAdmin" />
+
+                @if (IsAdmin && Event.Teams.Count > 0)
+                {
+                    <div class="scoreboard">
+                        <h3>Scoreboard</h3>
+                        @foreach (var team in Event.Teams.OrderByDescending(t => GetTeamPoints(t)))
+                        {
+                            <div class="score-row">
+                                <span class="team-dot" style="background: @team.Color"></span>
+                                <span class="score-name">@team.Name</span>
+                                <span class="score-tiles">@GetTeamCompletedCount(team) tiles</span>
+                                <span class="score-points">@GetTeamPoints(team) pts</span>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (!IsAdmin && MyTeam != null)
+                {
+                    <div class="scoreboard">
+                        <h3>Your Team — @MyTeam.Name</h3>
+                        <div class="team-summary-row">
+                            <span class="score-tiles">@GetTeamCompletedCount(MyTeam) tiles completed</span>
+                            <span class="score-points">@GetTeamPoints(MyTeam) pts</span>
+                        </div>
+                        <div class="team-roster">
+                            @foreach (var member in MyTeam.Members.OrderByDescending(m => m.ContributionScore))
+                            {
+                                <div class="roster-row">
+                                    <span class="roster-name">@member.Name</span>
+                                    <span class="roster-score">@member.ContributionScore.ToString("F2")</span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                }
+
+            }
+        </div>
+</div>
+
+@if (_lightboxUrl != null)
+{
+    <div class="lightbox-overlay" @onclick="() => _lightboxUrl = null">
+        <img src="@_lightboxUrl" class="lightbox-img" />
+    </div>
+}
+
+@code {
+    [Parameter] public BingoEvent Event { get; set; } = new();
+    [Parameter] public bool DefaultOpen { get; set; }
+    [Parameter] public bool IsAdmin { get; set; }
+    [Parameter] public int? UserTeamId { get; set; }
+    [Parameter] public EventCallback<BingoEvent> OnUpdate { get; set; }
+    [Parameter] public EventCallback<BingoEvent> OnDelete { get; set; }
+
+    private bool _editing;
+    private int? _selectedTeamId;
+    private string? _lightboxUrl;
+
+    private BingoTeam? MyTeam => UserTeamId.HasValue
+        ? Event.Teams.FirstOrDefault(t => t.Id == UserTeamId.Value)
+        : null;
+
+    // In user mode, always show their team. In admin mode, use the selector.
+    private int? EffectiveTeamId => IsAdmin ? _selectedTeamId : UserTeamId;
+
+    private string StatusLabel => Event.Status switch
+    {
+        BingoEventStatus.Upcoming => "Upcoming",
+        BingoEventStatus.Active => "Active",
+        BingoEventStatus.Completed => "Completed",
+        _ => ""
+    };
+
+    private void ToggleEdit()
+    {
+        _editing = !_editing;
+    }
+
+    private IEnumerable<(BingoSubmission Sub, BingoTile Tile, BingoTeam Team)> PendingSubmissions =>
+        Event.Teams.SelectMany(team =>
+            team.TeamTiles.SelectMany(tt =>
+                tt.Submissions
+                    .Where(s => s.Status == SubmissionStatus.Pending)
+                    .Select(s => (s, Event.Tiles.First(t => t.Id == tt.BingoTileId), team))
+            )
+        ).OrderBy(x => x.s.SubmittedAt);
+
+    private async Task ReviewSubmission(BingoSubmission sub, SubmissionStatus newStatus)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var entity = await db.BingoSubmissions.FindAsync(sub.Id);
+        if (entity == null) return;
+
+        entity.Status = newStatus;
+        entity.ReviewedBy = "Admin";
+        entity.ReviewedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        sub.Status = newStatus;
+        sub.ReviewedBy = "Admin";
+        sub.ReviewedAt = DateTime.UtcNow;
+        StateHasChanged();
+    }
+
+    private int GetTeamCompletedCount(BingoTeam team) =>
+        team.TeamTiles.Count(tt => tt.Status == TileStatus.Completed);
+
+    private int GetTeamPoints(BingoTeam team) =>
+        team.TeamTiles
+            .Where(tt => tt.Status == TileStatus.Completed)
+            .Sum(tt => Event.Tiles.FirstOrDefault(t => t.Id == tt.BingoTileId)?.Points ?? 1);
+
+    private async Task HandleSave(BingoEvent draft)
+    {
+        await OnUpdate.InvokeAsync(draft);
+        _editing = false;
+    }
+
+    private async Task HandleTileStatusChanged((int TileId, int TeamId, TileStatus Status) change)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var existing = await db.BingoTeamTiles
+            .FirstOrDefaultAsync(tt => tt.BingoTileId == change.TileId && tt.BingoTeamId == change.TeamId);
+
+        if (existing != null)
+        {
+            existing.Status = change.Status;
+            existing.CompletedAt = change.Status == TileStatus.Completed ? DateTime.UtcNow : null;
+        }
+        else
+        {
+            var newTt = new BingoTeamTile
+            {
+                BingoTeamId = change.TeamId,
+                BingoTileId = change.TileId,
+                Status = change.Status,
+                CompletedAt = change.Status == TileStatus.Completed ? DateTime.UtcNow : null,
+            };
+            db.BingoTeamTiles.Add(newTt);
+
+            // Update in-memory
+            var team = Event.Teams.FirstOrDefault(t => t.Id == change.TeamId);
+            team?.TeamTiles.Add(newTt);
+        }
+
+        if (existing != null)
+        {
+            var inMemory = Event.Teams.SelectMany(t => t.TeamTiles)
+                .FirstOrDefault(tt => tt.BingoTileId == change.TileId && tt.BingoTeamId == change.TeamId);
+            if (inMemory != null)
+            {
+                inMemory.Status = change.Status;
+                inMemory.CompletedAt = change.Status == TileStatus.Completed ? DateTime.UtcNow : null;
+            }
+        }
+
+        await db.SaveChangesAsync();
+        StateHasChanged();
+    }
+}

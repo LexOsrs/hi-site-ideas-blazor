@@ -1,7 +1,9 @@
 @using hi_site_ideas_blazor.Models
 @using hi_site_ideas_blazor.Data
 @using Microsoft.EntityFrameworkCore
+@using hi_site_ideas_blazor.Services
 @inject IDbContextFactory<AppDbContext> DbFactory
+@inject DiscordService Discord
 @rendermode InteractiveServer
 
 <div class="giveaways-demo">
@@ -41,7 +43,7 @@
     <div class="giveaway-list">
         @foreach (var g in (_tab == "active" ? Active : Completed))
         {
-            <GiveawayCard @key="g.Id" Giveaway="@g" DefaultOpen="@(_tab == "active")" MemberNames="@_memberNames" OnUpdate="UpdateGiveaway" />
+            <GiveawayCard @key="g.Id" Giveaway="@g" DefaultOpen="@(_tab == "active")" MemberNames="@_memberNames" OnUpdate="UpdateGiveaway" OnRepost="RepostToDiscord" />
         }
         @if (_tab == "active" && Active.Count == 0)
         {
@@ -98,6 +100,7 @@
         existing.StartKc = updated.StartKc;
         existing.CurrentKc = updated.CurrentKc;
         existing.DropKc = updated.DropKc;
+        existing.GuessingClosesAt = updated.GuessingClosesAt;
 
         db.Prizes.RemoveRange(existing.Prizes);
         existing.Prizes = updated.Prizes.Select(p => new Prize { Label = p.Label, Type = p.Type, Reward = p.Reward, Count = p.Count }).ToList();
@@ -119,5 +122,28 @@
 
         _giveaways.Insert(0, draft);
         _showModal = false;
+
+        await PostAndSaveDiscordIds(draft);
+    }
+
+    private async Task RepostToDiscord(Giveaway giveaway)
+    {
+        await PostAndSaveDiscordIds(giveaway);
+    }
+
+    private async Task PostAndSaveDiscordIds(Giveaway giveaway)
+    {
+        await Discord.CreateGiveawayPost(giveaway);
+        if (giveaway.DiscordMessageId.HasValue || giveaway.DiscordThreadId.HasValue)
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            var entity = await db.Giveaways.FindAsync(giveaway.Id);
+            if (entity != null)
+            {
+                entity.DiscordMessageId = giveaway.DiscordMessageId;
+                entity.DiscordThreadId = giveaway.DiscordThreadId;
+                await db.SaveChangesAsync();
+            }
+        }
     }
 }

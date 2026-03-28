@@ -4,3 +4,7 @@ obj/
 *.suo
 .vs/
 *.db
+*.db-shm
+*.db-wal
+appsettings.Development.json
+wwwroot/uploads/

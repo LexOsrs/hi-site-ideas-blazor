@@ -1,0 +1,1418 @@
+/* ========== Page Headings ========== */
+::deep .page-heading {
+  font-size: 1.4rem;
+  color: var(--gold);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+::deep .rules-content {
+  font-size: 0.95rem;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+::deep .rules-content p {
+  margin-bottom: 4px;
+}
+
+/* ========== Event Info Area ========== */
+::deep .event-info-area {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* ========== Expandable Sections ========== */
+::deep .expandable-sections {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+::deep .expandable-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--gold);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s;
+  text-align: left;
+}
+
+::deep .expandable-header:hover { color: var(--gold-dim); }
+
+::deep .expandable-body {
+  padding: 4px 0 8px 22px;
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+::deep .expandable-body p {
+  margin-bottom: 2px;
+}
+
+/* ========== Team Roster ========== */
+::deep .team-summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+::deep .team-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+::deep .roster-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 0.88rem;
+}
+
+::deep .roster-row + .roster-row {
+  border-top: 1px solid rgba(61, 51, 36, 0.5);
+}
+
+::deep .roster-name { color: var(--text); }
+::deep .roster-score { color: var(--gold); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+::deep .score-rank {
+  color: var(--text-dim);
+  font-weight: 600;
+  min-width: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+::deep .score-row.my-team {
+  background: rgba(255, 152, 31, 0.06);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: -2px -8px;
+}
+
+::deep .score-row.my-team .score-name { color: var(--gold); }
+
+/* ========== New Event Button ========== */
+::deep .new-event-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: linear-gradient(180deg, #4a3a22 0%, #2e2216 100%);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--gold);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 16px;
+}
+
+::deep .new-event-btn:hover {
+  background: linear-gradient(180deg, #5c4a32 0%, #3e3220 100%);
+  border-color: var(--gold-dim);
+}
+
+/* ========== Tabs ========== */
+::deep .bingo-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+}
+
+::deep .bingo-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: none;
+  border: none;
+  border-radius: 7px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .bingo-tab:hover { color: var(--text); background: var(--bg-elevated); }
+
+::deep .bingo-tab.active {
+  background: var(--bg-elevated);
+  color: var(--gold);
+  box-shadow: 0 0 12px var(--gold-glow);
+}
+
+::deep .event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+::deep .empty-state {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 32px;
+  font-size: 0.95rem;
+}
+
+/* ========== Event Card ========== */
+::deep .bingo-event {
+  margin-bottom: 16px;
+}
+
+::deep .bingo-event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+::deep .bingo-event-title {
+  font-size: 1.4rem;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+::deep .bingo-event-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+::deep .edit-btn-inline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .edit-btn-inline:hover {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+}
+
+::deep .bingo-meta {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+
+/* Status badges */
+::deep .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+::deep .status-upcoming {
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  color: #60a5fa;
+}
+
+::deep .status-active {
+  background: rgba(255, 152, 31, 0.1);
+  border: 1px solid rgba(255, 152, 31, 0.25);
+  color: var(--gold);
+}
+
+::deep .status-completed {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  color: var(--green);
+}
+
+::deep .bingo-body {
+  padding: 0 24px 24px;
+  margin-top: 8px;
+}
+
+::deep .event-description {
+  color: var(--text);
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* ========== Team Selector ========== */
+::deep .team-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+::deep .team-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .team-chip:hover {
+  border-color: var(--border-light);
+  color: var(--text);
+}
+
+::deep .team-chip.active {
+  background: var(--bg-surface);
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
+
+::deep .team-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ========== Bingo Board Grid ========== */
+::deep .bingo-board {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 20px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+::deep .board-tile {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  text-align: center;
+  overflow: hidden;
+}
+
+::deep .board-tile:hover {
+  border-color: var(--gold-dim);
+  background: rgba(255, 152, 31, 0.06);
+  transform: scale(1.02);
+  z-index: 1;
+}
+
+::deep .board-tile.completed {
+  background: rgba(var(--tile-team-color, 74, 222, 128), 0.08);
+  border-color: var(--tile-team-color, var(--green));
+  border-width: 2px;
+}
+
+::deep .board-tile.in-progress {
+  border-color: var(--gold-dim);
+  border-style: dashed;
+}
+
+::deep .tile-check {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--green);
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2;
+  border-radius: 7px;
+}
+
+::deep .tile-image {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: none;
+  flex-shrink: 0;
+}
+
+::deep .tile-points {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.7rem;
+  color: var(--gold-dim);
+  font-weight: 600;
+}
+
+::deep .tile-title {
+  font-size: 0.7rem;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+::deep .tile-team-dots {
+  display: flex;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+::deep .mini-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+::deep .mini-dot.wip {
+  opacity: 0.5;
+}
+
+/* ========== Detail Tabs ========== */
+::deep .detail-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 16px;
+}
+
+::deep .detail-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .detail-tab:hover { color: var(--text); background: rgba(255, 152, 31, 0.04); }
+
+::deep .detail-tab.active {
+  background: var(--bg-surface);
+  color: var(--gold);
+}
+
+::deep .tab-count {
+  font-size: 0.72rem;
+  background: rgba(255, 152, 31, 0.15);
+  color: var(--gold);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+/* ========== Tile Detail Modal ========== */
+::deep .tile-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+::deep .tile-detail-image {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  align-self: center;
+}
+
+::deep .tile-description {
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+::deep .tile-description p {
+  margin-bottom: 2px;
+}
+
+/* ========== Requirements Display ========== */
+::deep .tile-team-section {
+  margin-top: 8px;
+}
+
+::deep .req-group {
+  margin: 8px 0 8px 18px;
+  padding: 8px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+::deep .req-group.complete {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(74, 222, 128, 0.04);
+}
+
+::deep .req-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+::deep .req-group-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+::deep .req-group-done {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--green);
+  text-transform: uppercase;
+}
+
+::deep .req-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.85rem;
+}
+
+::deep .req-row + .req-row {
+  border-top: 1px solid rgba(61, 51, 36, 0.4);
+}
+
+::deep .req-check {
+  width: 16px;
+  color: var(--green);
+  font-weight: 700;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+::deep .req-label {
+  flex: 1;
+  color: var(--text);
+}
+
+::deep .req-row.done .req-label {
+  color: var(--green);
+}
+
+::deep .req-progress {
+  font-size: 0.8rem;
+  color: var(--gold-dim);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+::deep .req-row.done .req-progress {
+  color: var(--green);
+}
+
+::deep .req-option {
+  margin: 4px 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+::deep .req-option.option-active {
+  border-color: rgba(255, 152, 31, 0.3);
+  background: rgba(255, 152, 31, 0.03);
+}
+
+::deep .req-option.option-complete {
+  border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(74, 222, 128, 0.04);
+}
+
+::deep .req-option-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+::deep .req-option.option-active .req-option-label { color: var(--gold-dim); }
+::deep .req-option.option-complete .req-option-label { color: var(--green); }
+
+::deep .req-hidden-count {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  padding: 4px 0;
+  display: block;
+}
+
+/* ========== Contribution List ========== */
+::deep .contribution-list {
+  margin: 8px 0 0 18px;
+}
+
+::deep .contribution-list h4 {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 4px;
+}
+
+::deep .contribution-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  padding: 2px 0;
+}
+
+::deep .contribution-name { color: var(--text); flex-shrink: 0; }
+::deep .contribution-detail { color: var(--text-dim); flex: 1; font-size: 0.78rem; }
+::deep .contribution-value { color: var(--gold-dim); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ========== Review Controls ========== */
+::deep .review-label-select { font-size: 0.8rem; flex: 1; }
+::deep .review-amount-input { width: 60px; font-size: 0.8rem; text-align: center; }
+
+/* ========== Submissions Tab ========== */
+::deep .submissions-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+::deep .submission-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+::deep .submission-upload h4 {
+  font-size: 0.9rem;
+  color: var(--gold);
+  margin-bottom: 2px;
+}
+
+::deep .upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+::deep .upload-row label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  min-width: 100px;
+}
+
+::deep .upload-row input,
+::deep .upload-row select {
+  flex: 1;
+}
+
+::deep .upload-unit {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+::deep .upload-row input[type="number"] {
+  max-width: 80px;
+  flex: 0;
+}
+
+/* ========== Submission Cards ========== */
+::deep .submission-group { display: flex; flex-direction: column; gap: 8px; }
+
+::deep .submission-group-header {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+::deep .pending-header { color: var(--gold); }
+::deep .denied-header { color: var(--red); }
+
+::deep .submission-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+::deep .submission-card.pending { border-color: rgba(255, 152, 31, 0.3); }
+::deep .submission-card.denied { opacity: 0.6; }
+
+::deep .submission-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  flex-wrap: wrap;
+}
+
+::deep .submission-type-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+::deep .type-start {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+::deep .type-progress {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--green);
+}
+
+::deep .type-denied {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--red);
+}
+
+::deep .submission-by {
+  font-size: 0.85rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+::deep .submission-date {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-left: auto;
+}
+
+::deep .approved-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--green);
+  text-transform: uppercase;
+}
+
+::deep .submission-img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  background: #000;
+  cursor: zoom-in;
+}
+
+/* ========== Lightbox ========== */
+::deep .lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  cursor: zoom-out;
+  padding: 24px;
+}
+
+::deep .lightbox-img {
+  max-width: 95vw;
+  max-height: 95vh;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+::deep .submission-caption {
+  padding: 6px 12px;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+
+::deep .review-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+}
+
+::deep .approve-btn {
+  padding: 5px 14px;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 6px;
+  color: var(--green);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .approve-btn:hover {
+  background: rgba(74, 222, 128, 0.2);
+}
+
+::deep .deny-btn {
+  padding: 5px 14px;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 6px;
+  color: var(--red);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .deny-btn:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+::deep .pending-label {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  color: var(--gold-dim);
+  font-style: italic;
+}
+
+::deep .entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+::deep .entry-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+::deep .entry-row select { flex: 1; }
+
+::deep .add-entry-btn {
+  padding: 4px 0;
+  background: none;
+  border: none;
+  color: var(--gold-dim);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+::deep .add-entry-btn:hover { color: var(--gold); }
+
+::deep .review-entry-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+::deep .review-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+::deep .empty-screenshots {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 24px;
+  font-size: 0.9rem;
+}
+
+::deep .tile-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+::deep .tile-info-label { color: var(--text-dim); }
+::deep .tile-info-value { color: var(--gold); font-weight: 600; }
+
+::deep .tile-team-statuses {
+  margin-top: 8px;
+}
+
+::deep .tile-team-statuses h3 {
+  font-size: 1rem;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+
+::deep .team-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+::deep .team-status-name {
+  color: var(--text);
+  font-weight: 600;
+  min-width: 100px;
+}
+
+::deep .tile-status-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+::deep .tile-status-notstarted {
+  background: rgba(138, 122, 96, 0.15);
+  color: var(--text-dim);
+}
+
+::deep .tile-status-inprogress {
+  background: rgba(255, 152, 31, 0.1);
+  color: var(--gold);
+}
+
+::deep .tile-status-completed {
+  background: rgba(74, 222, 128, 0.1);
+  color: var(--green);
+}
+
+::deep .status-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+::deep .status-action-btn {
+  padding: 3px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .status-action-btn:hover:not(:disabled) {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
+
+::deep .status-action-btn.current {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ========== Pending Review Section ========== */
+::deep .pending-review-section {
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 152, 31, 0.25);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+::deep .pending-review-section h3 {
+  font-size: 1rem;
+  color: var(--gold);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+::deep .pending-count {
+  font-size: 0.75rem;
+  background: rgba(255, 152, 31, 0.2);
+  color: var(--gold);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+::deep .pending-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+::deep .pending-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+::deep .pending-tile-name {
+  font-size: 0.88rem;
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+::deep .pending-card-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+}
+
+::deep .pending-thumb {
+  width: 120px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: zoom-in;
+  flex-shrink: 0;
+}
+
+::deep .pending-card-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+::deep .pending-caption {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+::deep .pending-card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ========== Scoreboard ========== */
+::deep .scoreboard {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+::deep .scoreboard h3 {
+  font-size: 1rem;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+
+::deep .score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 0.9rem;
+}
+
+::deep .score-row + .score-row {
+  border-top: 1px solid var(--border);
+}
+
+::deep .score-name {
+  flex: 1;
+  color: var(--text);
+  font-weight: 600;
+}
+
+::deep .score-tiles {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+::deep .score-points {
+  color: var(--gold);
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* ========== Export ========== */
+::deep .event-actions {
+  display: flex;
+  gap: 8px;
+}
+
+::deep .export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+
+::deep .export-btn:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
+
+/* ========== Tile Editor Grid ========== */
+::deep .tile-editor-grid {
+  display: grid;
+  gap: 4px;
+}
+
+::deep .tile-editor-cell {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px;
+  background: var(--bg-elevated);
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  text-align: center;
+  overflow: hidden;
+}
+
+::deep .tile-editor-cell:hover {
+  border-color: var(--gold-dim);
+  border-style: solid;
+}
+
+::deep .tile-editor-cell.filled {
+  border-style: solid;
+  border-color: var(--border-light);
+  background: rgba(255, 152, 31, 0.04);
+}
+
+::deep .tile-editor-title {
+  font-size: 0.72rem;
+  color: var(--text);
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+::deep .tile-editor-pts {
+  font-size: 0.65rem;
+  color: var(--gold-dim);
+}
+
+::deep .tile-editor-empty {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  opacity: 0.4;
+}
+
+::deep .tile-edit-form {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+::deep .tile-edit-form h4 {
+  font-size: 0.9rem;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+
+/* ========== Edit Panel (shared with giveaways) ========== */
+::deep .edit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 8px;
+}
+
+::deep .edit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+::deep .edit-row label {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+
+::deep .edit-row-group {
+  display: flex;
+  gap: 12px;
+}
+
+::deep .edit-prizes {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+::deep .edit-prizes h4 {
+  font-size: 0.9rem;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+::deep .edit-prize-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+::deep .edit-prize-row input { flex: 1; }
+
+::deep .edit-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--red);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+::deep .edit-icon-btn:hover {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: var(--red);
+}
+
+::deep .add-prize-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+
+::deep .add-prize-btn:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
+
+::deep .edit-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+::deep .save-btn {
+  padding: 8px 20px;
+  background: linear-gradient(180deg, #4a3a22 0%, #2e2216 100%);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: var(--gold);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .save-btn:hover {
+  background: linear-gradient(180deg, #5c4a32 0%, #3e3220 100%);
+  border-color: var(--gold-dim);
+}
+
+::deep .cancel-btn {
+  padding: 8px 20px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .cancel-btn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+/* ========== Modal ========== */
+::deep .modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+
+::deep .modal-content {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+::deep .modal-wide {
+  max-width: 700px;
+}
+
+::deep .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+::deep .modal-header h2 {
+  font-size: 1.3rem;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+::deep .modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .modal-close:hover {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 640px) {
+  ::deep .bingo-header { flex-direction: column; align-items: flex-start; }
+  ::deep .team-selector { gap: 4px; }
+  ::deep .team-status-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  ::deep .status-actions { margin-left: 0; }
+  ::deep .board-tile { padding: 4px 2px; }
+  ::deep .tile-title { font-size: 0.65rem; }
+}

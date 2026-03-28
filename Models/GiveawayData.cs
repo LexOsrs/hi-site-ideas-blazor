@@ -13,6 +13,9 @@ public class Giveaway
     public int StartKc { get; set; }
     public int CurrentKc { get; set; }
     public int? DropKc { get; set; }
+    public DateTime? GuessingClosesAt { get; set; }
+    public ulong? DiscordMessageId { get; set; }
+    public ulong? DiscordThreadId { get; set; }
     public List<Prize> Prizes { get; set; } = [];
     public List<Guess> Guesses { get; set; } = [];
 
@@ -32,6 +35,9 @@ public class Giveaway
         StartKc = StartKc,
         CurrentKc = CurrentKc,
         DropKc = DropKc,
+        GuessingClosesAt = GuessingClosesAt,
+        DiscordMessageId = DiscordMessageId,
+        DiscordThreadId = DiscordThreadId,
         Prizes = Prizes.Select(p => new Prize { Label = p.Label, Type = p.Type, Reward = p.Reward, Count = p.Count }).ToList(),
         Guesses = Guesses.Select(g => new Guess { Name = g.Name, GuessKc = g.GuessKc }).ToList(),
     };

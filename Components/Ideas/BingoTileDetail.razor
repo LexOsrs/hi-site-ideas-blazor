@@ -1,0 +1,493 @@
+@using hi_site_ideas_blazor.Models
+@using hi_site_ideas_blazor.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
+
+<div class="modal-overlay" @onclick="() => OnClose.InvokeAsync()">
+    <div class="modal-content modal-wide" @onclick:stopPropagation="true">
+        <div class="modal-header">
+            <h2>@Tile.Title</h2>
+            <button class="modal-close" @onclick="() => OnClose.InvokeAsync()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="detail-tabs">
+            <button class="detail-tab @(_tab == "details" ? "active" : "")" @onclick='() => _tab = "details"'>Details</button>
+            <button class="detail-tab @(_tab == "submissions" ? "active" : "")" @onclick='() => _tab = "submissions"'>
+                Screenshots
+                @if (SubmissionCount > 0)
+                {
+                    <span class="tab-count">@SubmissionCount</span>
+                }
+            </button>
+        </div>
+
+        @if (_tab == "details")
+        {
+            <div class="tile-detail">
+                @if (!string.IsNullOrEmpty(Tile.ImageUrl))
+                {
+                    <img class="tile-detail-image" src="@Tile.ImageUrl" alt="@Tile.Title" />
+                }
+
+                @if (!string.IsNullOrEmpty(Tile.Description))
+                {
+                    <div class="tile-description">
+                        @foreach (var line in Tile.Description.Split('\n'))
+                        {
+                            @if (string.IsNullOrWhiteSpace(line)) { <br /> }
+                            else { <p>@line</p> }
+                        }
+                    </div>
+                }
+
+                <div class="tile-info-row">
+                    <span class="tile-info-label">Points</span>
+                    <span class="tile-info-value">@Tile.Points</span>
+                </div>
+
+                @foreach (var team in TeamsToShow)
+                {
+                    var tt = Tile.TeamTiles.FirstOrDefault(x => x.BingoTeamId == team.Id);
+                    var approved = tt?.GetApprovedSubmissions() ?? Enumerable.Empty<BingoSubmission>();
+                    var computedStatus = ComputeStatus(approved);
+
+                    <div class="tile-team-section">
+                        <div class="team-status-row">
+                            <span class="team-dot" style="background: @team.Color"></span>
+                            <span class="team-status-name">@team.Name</span>
+                            <span class="tile-status-badge tile-status-@computedStatus.css">
+                                @computedStatus.label
+                            </span>
+                        </div>
+
+                        @if (Tile.HasRequirements)
+                        {
+                            @foreach (var group in Tile.RequirementGroups)
+                            {
+                                var showGroupLabel = Tile.RequirementGroups.Count > 1 || group.Mode == RequirementMode.OneOf;
+                                var groupSatisfied = group.IsSatisfied(approved);
+
+                                <div class="req-group @(groupSatisfied ? "complete" : "")">
+                                    @if (showGroupLabel)
+                                    {
+                                        <div class="req-group-header">
+                                            <span class="req-group-label">@group.Label @(group.Mode == RequirementMode.OneOf ? "(pick one)" : "")</span>
+                                            @if (groupSatisfied)
+                                            {
+                                                <span class="req-group-done">Complete</span>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (group.Mode == RequirementMode.All)
+                                    {
+                                        @foreach (var req in group.Options.SelectMany(o => o.Requirements))
+                                        {
+                                            var progress = BingoRequirementOption.GetProgress(approved, req.Label);
+                                            var done = progress >= req.TargetCount;
+                                            <div class="req-row @(done ? "done" : "")">
+                                                <span class="req-check">@(done ? "\u2713" : "")</span>
+                                                <span class="req-label">@req.Label</span>
+                                                <span class="req-progress">@progress.ToString("N0") / @req.TargetCount.ToString("N0")</span>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        @foreach (var option in group.Options.OrderByDescending(o => o.CompletionFraction(approved)))
+                                        {
+                                            var optComplete = option.IsComplete(approved);
+                                            var hasProgress = option.Requirements.Any(r => approved.Any(s => s.RequirementLabel == r.Label && s.Amount > 0));
+                                            <div class="req-option @(optComplete ? "option-complete" : "") @(hasProgress && !optComplete ? "option-active" : "")">
+                                                <span class="req-option-label">@option.Label</span>
+                                                @foreach (var req in option.Requirements)
+                                                {
+                                                    var progress = BingoRequirementOption.GetProgress(approved, req.Label);
+                                                    var done = progress >= req.TargetCount;
+                                                    <div class="req-row @(done ? "done" : "")">
+                                                        <span class="req-check">@(done ? "\u2713" : "")</span>
+                                                        <span class="req-label">@req.Label</span>
+                                                        <span class="req-progress">@progress.ToString("N0") / @req.TargetCount.ToString("N0")</span>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+
+                            @if (approved.Any(s => s.Entries.Any(e => e.Amount > 0)))
+                            {
+                                <div class="contribution-list">
+                                    <h4>Contributions</h4>
+                                    @foreach (var sub in approved.Where(s => s.Entries.Any(e => e.Amount > 0)).OrderBy(s => s.SubmittedAt))
+                                    {
+                                        @foreach (var entry in sub.Entries.Where(e => e.Amount > 0))
+                                        {
+                                            <div class="contribution-row">
+                                                <span class="contribution-name">@sub.SubmittedBy</span>
+                                                <span class="contribution-detail">@entry.RequirementLabel</span>
+                                                <span class="contribution-value">+@entry.Amount.ToString("N0")</span>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="submissions-tab">
+                @if (SelectedTeamId.HasValue)
+                {
+                    <div class="submission-upload">
+                        <h4>Submit Screenshot</h4>
+                        <div class="upload-row">
+                            <select @bind="_submissionType">
+                                <option value="@SubmissionType.Start">Starting screenshot</option>
+                                <option value="@SubmissionType.Progress">Progress / Item obtained</option>
+                            </select>
+                        </div>
+                        @if (_submissionType == SubmissionType.Progress && AllRequirementLabels.Any())
+                        {
+                            <div class="entry-list">
+                                @for (int i = 0; i < _entries.Count; i++)
+                                {
+                                    var idx = i;
+                                    <div class="entry-row">
+                                        <select value="@_entries[idx].Label" @onchange="e => _entries[idx].Label = e.Value?.ToString() ?? _entries[idx].Label">
+                                            @foreach (var label in AllRequirementLabels)
+                                            {
+                                                <option value="@label" selected="@(label == _entries[idx].Label)">@label</option>
+                                            }
+                                        </select>
+                                        <input type="number" value="@_entries[idx].Amount" @onchange="e => _entries[idx].Amount = int.TryParse(e.Value?.ToString(), out var v) ? v : _entries[idx].Amount" min="1" style="width: 70px" />
+                                        @if (_entries.Count > 1)
+                                        {
+                                            <button class="edit-icon-btn" @onclick="() => _entries.RemoveAt(idx)">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                                                </svg>
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                            <button class="add-entry-btn" @onclick="AddEntry">+ Add another item from this screenshot</button>
+                        }
+                        <div class="upload-row">
+                            <input @bind="_imageUrl" placeholder="Screenshot URL (Cloudinary, Imgur, etc.)" />
+                        </div>
+                        <div class="upload-row">
+                            <input @bind="_caption" placeholder="What did you get?" />
+                        </div>
+                        <button class="save-btn" @onclick="SubmitScreenshot" disabled="@(string.IsNullOrWhiteSpace(_imageUrl))">
+                            Submit for Review
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <p class="empty-screenshots">No team selected.</p>
+                }
+
+                @{ var pending = GetSubmissions(SubmissionStatus.Pending); }
+                @if (pending.Any())
+                {
+                    <div class="submission-group">
+                        <h4 class="submission-group-header pending-header">Pending Review (@pending.Count())</h4>
+                        @foreach (var sub in pending)
+                        {
+                            <div class="submission-card pending">
+                                <div class="submission-card-header">
+                                    @if (sub.Type == SubmissionType.Start)
+                                    {
+                                        <span class="submission-type-badge type-start">START</span>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var entry in sub.Entries)
+                                        {
+                                            <span class="submission-type-badge type-progress">+@entry.Amount @entry.RequirementLabel</span>
+                                        }
+                                    }
+                                    <span class="submission-by">@sub.SubmittedBy</span>
+                                    <span class="submission-date">@sub.SubmittedAt.ToString("MMM d")</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(sub.ImageUrl))
+                                {
+                                    <img src="@sub.ImageUrl" alt="@(sub.Caption ?? "Screenshot")" class="submission-img" @onclick="() => _lightboxUrl = sub.ImageUrl" @onclick:stopPropagation="true" />
+                                }
+                                @if (!string.IsNullOrEmpty(sub.Caption))
+                                {
+                                    <p class="submission-caption">@sub.Caption</p>
+                                }
+                                @if (IsAdmin)
+                                {
+                                    <div class="review-actions">
+                                        @if (sub.Type == SubmissionType.Progress)
+                                        {
+                                            @foreach (var entry in sub.Entries)
+                                            {
+                                                var e = entry;
+                                                <div class="review-entry-row">
+                                                    <select class="review-label-select" value="@e.RequirementLabel" @onchange="v => e.RequirementLabel = v.Value?.ToString() ?? e.RequirementLabel">
+                                                        @foreach (var label in AllRequirementLabels)
+                                                        {
+                                                            <option value="@label" selected="@(label == e.RequirementLabel)">@label</option>
+                                                        }
+                                                    </select>
+                                                    <input type="number" class="review-amount-input" value="@e.Amount" @onchange="v => e.Amount = int.TryParse(v.Value?.ToString(), out var val) ? val : e.Amount" min="0" />
+                                                </div>
+                                            }
+                                        }
+                                        <div class="review-buttons">
+                                            <button class="approve-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Approved)">Approve</button>
+                                            <button class="deny-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Denied)">Deny</button>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="pending-label">Awaiting moderator review</span>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @{ var approved = GetSubmissions(SubmissionStatus.Approved); }
+                @if (approved.Any())
+                {
+                    <div class="submission-group">
+                        <h4 class="submission-group-header">Approved (@approved.Count())</h4>
+                        @foreach (var sub in approved)
+                        {
+                            <div class="submission-card approved">
+                                <div class="submission-card-header">
+                                    @if (sub.Type == SubmissionType.Start)
+                                    {
+                                        <span class="submission-type-badge type-start">START</span>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var entry in sub.Entries)
+                                        {
+                                            <span class="submission-type-badge type-progress">+@entry.Amount @entry.RequirementLabel</span>
+                                        }
+                                    }
+                                    <span class="submission-by">@sub.SubmittedBy</span>
+                                    <span class="submission-date">@sub.SubmittedAt.ToString("MMM d")</span>
+                                    <span class="approved-badge">Approved</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(sub.ImageUrl))
+                                {
+                                    <img src="@sub.ImageUrl" alt="@(sub.Caption ?? "Screenshot")" class="submission-img" @onclick="() => _lightboxUrl = sub.ImageUrl" @onclick:stopPropagation="true" />
+                                }
+                                @if (!string.IsNullOrEmpty(sub.Caption))
+                                {
+                                    <p class="submission-caption">@sub.Caption</p>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @{ var denied = GetSubmissions(SubmissionStatus.Denied); }
+                @if (denied.Any())
+                {
+                    <div class="submission-group">
+                        <h4 class="submission-group-header denied-header">Denied (@denied.Count())</h4>
+                        @foreach (var sub in denied)
+                        {
+                            <div class="submission-card denied">
+                                <div class="submission-card-header">
+                                    <span class="submission-type-badge type-denied">DENIED</span>
+                                    <span class="submission-by">@sub.SubmittedBy</span>
+                                    <span class="submission-date">@sub.SubmittedAt.ToString("MMM d")</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(sub.Caption))
+                                {
+                                    <p class="submission-caption">@sub.Caption</p>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (!pending.Any() && !approved.Any() && !denied.Any())
+                {
+                    <p class="empty-screenshots">No submissions yet.</p>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@if (_lightboxUrl != null)
+{
+    <div class="lightbox-overlay" @onclick="() => _lightboxUrl = null">
+        <img src="@_lightboxUrl" class="lightbox-img" />
+    </div>
+}
+
+@code {
+    [Parameter] public BingoTile Tile { get; set; } = new();
+    [Parameter] public BingoEvent Event { get; set; } = new();
+    [Parameter] public int? SelectedTeamId { get; set; }
+    [Parameter] public bool IsAdmin { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string _tab = "details";
+    private string? _lightboxUrl;
+    private SubmissionType _submissionType = SubmissionType.Progress;
+    private List<EntryDraft> _entries = [];
+    private string _imageUrl = "";
+    private string _caption = "";
+
+    private class EntryDraft { public string Label { get; set; } = ""; public int Amount { get; set; } = 1; }
+
+    private IEnumerable<BingoTeam> TeamsToShow => IsAdmin
+        ? Event.Teams
+        : Event.Teams.Where(t => SelectedTeamId.HasValue && t.Id == SelectedTeamId.Value);
+
+    private List<string> AllRequirementLabels => Tile.RequirementGroups
+        .SelectMany(g => g.Options)
+        .SelectMany(o => o.Requirements)
+        .Select(r => r.Label)
+        .Distinct()
+        .ToList();
+
+    protected override void OnInitialized()
+    {
+        var labels = AllRequirementLabels;
+        _entries = [new EntryDraft { Label = labels.FirstOrDefault() ?? "", Amount = 1 }];
+    }
+
+    private void AddEntry()
+    {
+        var labels = AllRequirementLabels;
+        _entries.Add(new EntryDraft { Label = labels.FirstOrDefault() ?? "", Amount = 1 });
+    }
+
+    private BingoTeamTile? MyTeamTile
+    {
+        get
+        {
+            if (!SelectedTeamId.HasValue) return null;
+            return Tile.TeamTiles.FirstOrDefault(x => x.BingoTeamId == SelectedTeamId.Value);
+        }
+    }
+
+    private int SubmissionCount
+    {
+        get
+        {
+            if (IsAdmin) return Tile.TeamTiles.Sum(tt => tt.Submissions.Count);
+            if (SelectedTeamId.HasValue) return Tile.TeamTiles.Where(x => x.BingoTeamId == SelectedTeamId.Value).Sum(tt => tt.Submissions.Count);
+            return 0;
+        }
+    }
+
+    private IEnumerable<BingoSubmission> GetSubmissions(SubmissionStatus status)
+    {
+        IEnumerable<BingoTeamTile> teamTiles;
+        if (IsAdmin)
+            teamTiles = SelectedTeamId.HasValue
+                ? Tile.TeamTiles.Where(tt => tt.BingoTeamId == SelectedTeamId.Value)
+                : Tile.TeamTiles;
+        else
+            teamTiles = Tile.TeamTiles.Where(tt => SelectedTeamId.HasValue && tt.BingoTeamId == SelectedTeamId.Value);
+
+        return teamTiles.SelectMany(tt => tt.Submissions).Where(s => s.Status == status).OrderByDescending(s => s.SubmittedAt);
+    }
+
+    private (string label, string css) ComputeStatus(IEnumerable<BingoSubmission> approved)
+    {
+        if (Tile.HasRequirements && Tile.IsComplete(approved))
+            return ("Complete", "completed");
+        if (approved.Any(s => s.Entries.Any(e => e.Amount > 0)))
+            return ("Partially Complete", "inprogress");
+        return ("Not Started", "notstarted");
+    }
+
+    private async Task SubmitScreenshot()
+    {
+        if (string.IsNullOrWhiteSpace(_imageUrl) || !SelectedTeamId.HasValue) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // Auto-create TeamTile if it doesn't exist
+        var teamTile = MyTeamTile;
+        if (teamTile == null)
+        {
+            teamTile = new BingoTeamTile
+            {
+                BingoTeamId = SelectedTeamId.Value,
+                BingoTileId = Tile.Id,
+                Status = TileStatus.InProgress,
+            };
+            db.BingoTeamTiles.Add(teamTile);
+            await db.SaveChangesAsync();
+
+            // Add to in-memory
+            var team = Event.Teams.FirstOrDefault(t => t.Id == SelectedTeamId.Value);
+            team?.TeamTiles.Add(teamTile);
+            Tile.TeamTiles.Add(teamTile);
+        }
+
+        var submission = new BingoSubmission
+        {
+            BingoTeamTileId = teamTile.Id,
+            SubmittedBy = IsAdmin ? "Admin" : "Lex 26",
+            ImageUrl = _imageUrl.Trim(),
+            Caption = string.IsNullOrWhiteSpace(_caption) ? null : _caption.Trim(),
+            Type = _submissionType,
+            Status = SubmissionStatus.Pending,
+            Entries = _submissionType == SubmissionType.Start
+                ? []
+                : _entries.Where(e => !string.IsNullOrEmpty(e.Label) && e.Amount > 0)
+                    .Select(e => new BingoSubmissionEntry { RequirementLabel = e.Label, Amount = e.Amount })
+                    .ToList(),
+        };
+        db.BingoSubmissions.Add(submission);
+        await db.SaveChangesAsync();
+
+        teamTile.Submissions.Add(submission);
+        _imageUrl = "";
+        _caption = "";
+        var labels = AllRequirementLabels;
+        _entries = [new EntryDraft { Label = labels.FirstOrDefault() ?? "", Amount = 1 }];
+    }
+
+    private async Task ReviewSubmission(BingoSubmission sub, SubmissionStatus newStatus)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var entity = await db.BingoSubmissions.Include(s => s.Entries).FirstOrDefaultAsync(s => s.Id == sub.Id);
+        if (entity == null) return;
+
+        entity.Status = newStatus;
+        entity.ReviewedBy = "Admin";
+        entity.ReviewedAt = DateTime.UtcNow;
+
+        // Sync entry changes from the in-memory edits
+        db.BingoSubmissionEntries.RemoveRange(entity.Entries);
+        entity.Entries = sub.Entries.Select(e => new BingoSubmissionEntry
+        {
+            RequirementLabel = e.RequirementLabel, Amount = e.Amount,
+        }).ToList();
+
+        await db.SaveChangesAsync();
+
+        sub.Status = newStatus;
+        sub.ReviewedBy = "Admin";
+        sub.ReviewedAt = DateTime.UtcNow;
+    }
+}

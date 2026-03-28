@@ -5,38 +5,41 @@
         <label>Title</label>
         <input @bind="Draft.Title" />
     </div>
+    <div class="edit-row">
+        <label>Player</label>
+        <SearchableSelect Value="@Draft.Player"
+                          ValueChanged="v => { Draft.Player = v; StateHasChanged(); }"
+                          Options="@MemberNames"
+                          Placeholder="Search members..." />
+    </div>
     <div class="edit-row-group">
         <div class="edit-row">
             <label>Boss / Activity</label>
             <SearchableSelect Value="@Draft.Boss"
                               ValueChanged="OnBossChanged"
                               Options="@_bossNames"
-                              Placeholder="Search bosses..."
+                              Placeholder="Optional — for KC tracking"
                               AllowCustom="true"
                               CustomHint="won't auto-sync KC" />
         </div>
-        <div class="edit-row">
-            <label>Player</label>
-            <SearchableSelect Value="@Draft.Player"
-                              ValueChanged="v => { Draft.Player = v; StateHasChanged(); }"
-                              Options="@MemberNames"
-                              Placeholder="Search members..." />
-        </div>
-    </div>
-    <div class="edit-row">
-        <label>Item</label>
-        <div class="edit-item-row">
-            <SearchableSelect Value="@Draft.Item"
-                              ValueChanged="v => { Draft.Item = v; StateHasChanged(); }"
-                              Options="@_itemOptions"
-                              Placeholder="Search items..."
-                              AllowCustom="true"
-                              CustomHint="won't auto-track" />
-            @if (!string.IsNullOrEmpty(Draft.Item))
-            {
-                <img class="edit-item-preview" src="@Draft.ImageUrl" alt="@Draft.Item" />
-            }
-        </div>
+        @if (_hasBoss)
+        {
+            <div class="edit-row">
+                <label>Item</label>
+                <div class="edit-item-row">
+                    <SearchableSelect Value="@Draft.Item"
+                                      ValueChanged="v => { Draft.Item = v; StateHasChanged(); }"
+                                      Options="@_itemOptions"
+                                      Placeholder="Search items..."
+                                      AllowCustom="true"
+                                      CustomHint="won't auto-track" />
+                    @if (!string.IsNullOrEmpty(Draft.Item))
+                    {
+                        <img class="edit-item-preview" src="@Draft.ImageUrl" alt="@Draft.Item" />
+                    }
+                </div>
+            </div>
+        }
     </div>
     <div class="edit-row-group">
         @if (!IsNew)
@@ -50,11 +53,18 @@
                 </select>
             </div>
         }
+        @if (_hasBoss)
+        {
+            <div class="edit-row">
+                <label>Start KC</label>
+                <input type="number" @bind="Draft.StartKc" />
+            </div>
+        }
         <div class="edit-row">
-            <label>Start KC</label>
-            <input type="number" @bind="Draft.StartKc" />
+            <label>Guessing closes at</label>
+            <input type="datetime-local" @bind="Draft.GuessingClosesAt" />
         </div>
-        @if (!IsNew)
+        @if (_hasBoss && !IsNew)
         {
             <div class="edit-row">
                 <label>Drop KC</label>
@@ -113,6 +123,7 @@
     private Giveaway Draft = new();
     private string[] _bossNames = [];
     private string[] _itemOptions = [];
+    private bool _hasBoss => !string.IsNullOrEmpty(Draft.Boss);
 
     private string StatusString
     {

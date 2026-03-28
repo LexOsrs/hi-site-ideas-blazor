@@ -1,8 +1,40 @@
 @inherits LayoutComponentBase
+@using hi_site_ideas_blazor.Models
 
 <div class="app-shell">
-    @Body
+    <nav class="top-nav">
+        <a href="/" class="nav-brand">Hardly Iron</a>
+        <div class="nav-items">
+            @foreach (var idea in IdeaRegistry.All.Where(i => i.Slug != "example"))
+            {
+                @if (idea.Slug == "bingo")
+                {
+                    <div class="nav-dropdown" id="bingo-dropdown">
+                        <span class="nav-link" onclick="var d=this.parentElement;d.classList.toggle('open');event.stopPropagation()">Bingo</span>
+                        <div class="dropdown-menu" onclick="this.parentElement.classList.remove('open')">
+                            <a href="/bingo" class="dropdown-item">Board</a>
+                            <a href="/bingo?tab=rules" class="dropdown-item">Rules</a>
+                            <a href="/bingo?tab=prizes" class="dropdown-item">Prizes</a>
+                            <a href="/bingo?tab=past" class="dropdown-item">Past Events</a>
+                            <div class="dropdown-divider"></div>
+                            <a href="/bingo?view=player" class="dropdown-item">Player View</a>
+                            <a href="/bingo?view=admin" class="dropdown-item">Admin View</a>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <a href="/@idea.Slug" class="nav-link">@idea.Title</a>
+                }
+            }
+        </div>
+    </nav>
+    <main class="main-content">
+        @Body
+    </main>
 </div>
+
+<script>document.addEventListener('click',function(){document.querySelectorAll('.nav-dropdown.open').forEach(function(d){d.classList.remove('open')})})</script>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

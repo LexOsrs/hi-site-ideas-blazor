@@ -25,6 +25,9 @@ jobs:
         run: |
           $json = Get-Content publish/appsettings.json | ConvertFrom-Json
           $json.ConnectionStrings.SqlServer = "${{ secrets.SQLSERVER_CONN }}"
+          $json.Discord.BotToken = "${{ secrets.DISCORD_BOT_TOKEN }}"
+          $json.Discord.ChannelId = "${{ secrets.DISCORD_CHANNEL_ID }}"
+          $json.Discord.GuildId = "${{ secrets.DISCORD_GUILD_ID }}"
           $json | ConvertTo-Json -Depth 10 | Set-Content publish/appsettings.json
         shell: pwsh
 

@@ -1,0 +1,88 @@
+@using hi_site_ideas_blazor.Models
+
+<div class="bingo-board" style="grid-template-columns: repeat(@Event.BoardSize, 1fr)">
+    @foreach (var tile in Event.Tiles.OrderBy(t => t.Position))
+    {
+        var teamTile = GetTeamTile(tile);
+        var approved = teamTile?.GetApprovedSubmissions() ?? Enumerable.Empty<BingoSubmission>();
+        var tileComplete = tile.HasRequirements && tile.IsComplete(approved);
+        var tilePartial = !tileComplete && approved.Any(s => s.Entries.Any(e => e.Amount > 0));
+        var statusClass = tileComplete ? "completed" : tilePartial ? "in-progress" : "";
+        var teamColor = GetTileTeamColor(tile);
+
+        <button class="board-tile @statusClass" @onclick="() => OpenTileDetail(tile)"
+                style="@(teamColor != null ? $"--tile-team-color: {teamColor}" : "")">
+            @if (tileComplete)
+            {
+                <span class="tile-check">&#10003;</span>
+            }
+            <span class="tile-points">@tile.Points pt</span>
+            @if (!string.IsNullOrEmpty(tile.ImageUrl))
+            {
+                <img class="tile-image" src="@tile.ImageUrl" alt="@tile.Title" />
+            }
+            else
+            {
+                <span class="tile-image-spacer"></span>
+            }
+            <span class="tile-title">@tile.Title</span>
+            @if (IsAdmin && SelectedTeamId == null && Event.Teams.Count > 0)
+            {
+                <div class="tile-team-dots">
+                    @foreach (var team in Event.Teams)
+                    {
+                        var tt = tile.TeamTiles.FirstOrDefault(x => x.BingoTeamId == team.Id);
+                        var teamApproved = tt?.GetApprovedSubmissions() ?? Enumerable.Empty<BingoSubmission>();
+                        var hasProgress = teamApproved.Any(s => s.Entries.Any(e => e.Amount > 0));
+                        @if (hasProgress)
+                        {
+                            var done = tile.HasRequirements && tile.IsComplete(teamApproved);
+                            <span class="mini-dot @(done ? "done" : "wip")"
+                                  style="background: @team.Color" title="@team.Name: @(done ? "Complete" : "In Progress")"></span>
+                        }
+                    }
+                </div>
+            }
+        </button>
+    }
+</div>
+
+@if (_selectedTile != null)
+{
+    <BingoTileDetail Tile="@_selectedTile" Event="@Event" SelectedTeamId="@SelectedTeamId" IsAdmin="@IsAdmin"
+        OnClose="() => _selectedTile = null" />
+}
+
+@code {
+    [Parameter] public BingoEvent Event { get; set; } = new();
+    [Parameter] public int? SelectedTeamId { get; set; }
+    [Parameter] public bool IsAdmin { get; set; }
+    private BingoTile? _selectedTile;
+
+    private BingoTeamTile? GetTeamTile(BingoTile tile)
+    {
+        if (SelectedTeamId == null) return null;
+        return tile.TeamTiles.FirstOrDefault(tt => tt.BingoTeamId == SelectedTeamId);
+    }
+
+    private string? GetTileTeamColor(BingoTile tile)
+    {
+        if (SelectedTeamId != null)
+        {
+            var tt = GetTeamTile(tile);
+            if (tt != null && tile.HasRequirements && tile.IsComplete(tt.GetApprovedSubmissions()))
+                return Event.Teams.FirstOrDefault(t => t.Id == SelectedTeamId)?.Color;
+            return null;
+        }
+        // In "all teams" mode, show color of first team to complete
+        foreach (var tt in tile.TeamTiles)
+        {
+            if (tile.HasRequirements && tile.IsComplete(tt.GetApprovedSubmissions()))
+                return Event.Teams.FirstOrDefault(t => t.Id == tt.BingoTeamId)?.Color;
+        }
+        return null;
+    }
+
+    private void OpenTileDetail(BingoTile tile) => _selectedTile = tile;
+
+}

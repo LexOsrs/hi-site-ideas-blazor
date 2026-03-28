@@ -14,6 +14,13 @@ public static class IdeaRegistry
             Component: typeof(Giveaways)
         ),
         new(
+            Slug: "bingo",
+            Title: "OSRS Bingo",
+            Description: "Create and manage OSRS bingo events with team boards, tile tracking, and completion history. Teams can view their board, mark tiles, and compete for bingo lines.",
+            Tags: ["pvm", "community", "competition"],
+            Component: typeof(Bingo)
+        ),
+        new(
             Slug: "example",
             Title: "Example Idea",
             Description: "A template showing how ideas are structured. Duplicate this to create new ones.",

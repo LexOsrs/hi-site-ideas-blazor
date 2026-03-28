@@ -2,6 +2,7 @@
 
 /* ========== OSRS Dark Theme Variables ========== */
 :root {
+  color-scheme: dark;
   --bg: #0f0d09;
   --bg-surface: #1a1610;
   --bg-elevated: #241f17;
@@ -17,12 +18,22 @@
   --red: #f87171;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+  margin: 0; padding: 0; box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-light) var(--bg);
+}
+
+*::-webkit-scrollbar { width: 6px; height: 6px; }
+*::-webkit-scrollbar-track { background: var(--bg); border-radius: 3px; }
+*::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 3px; }
+*::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+*::-webkit-scrollbar-corner { background: var(--bg); }
 
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'EB Garamond', Georgia, serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: 16px;
   line-height: 1.5;
   min-height: 100vh;
@@ -31,121 +42,96 @@ body {
 a { color: var(--gold-dim); text-decoration: none; transition: color 0.15s; }
 a:hover { color: var(--gold); }
 
-/* ========== Header ========== */
-.header {
-  text-align: center;
-  padding: 48px 0 32px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 32px;
+/* ========== Global Form Controls ========== */
+input, select, textarea, button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
 }
 
-.header h1 {
-  font-size: 2.4rem;
-  font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 1.5px;
-}
-
-.header .subtitle {
-  color: var(--text-dim);
-  font-size: 1.1rem;
-  margin-top: 4px;
-}
-
-/* ========== Idea Grid ========== */
-.idea-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  padding-bottom: 48px;
-}
-
-.idea-card {
-  display: block;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 20px;
-  text-decoration: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  cursor: pointer;
-}
-
-.idea-card:hover {
-  border-color: var(--gold-dim);
-  box-shadow: 0 0 20px var(--gold-glow);
-}
-
-.idea-card h2 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--gold);
-  margin-bottom: 6px;
-}
-
-.idea-card p {
-  font-size: 0.95rem;
-  color: var(--text);
-  line-height: 1.4;
-}
-
-/* ========== Tags ========== */
-.tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.tag {
-  font-size: 0.75rem;
-  padding: 2px 10px;
-  border-radius: 4px;
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="url"],
+input[type="search"],
+input:not([type]),
+select,
+textarea {
+  padding: 8px 10px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-/* ========== Idea Page ========== */
-.idea-page {
-  padding: 32px 0 48px;
-}
-
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  border-radius: 6px;
+  color: var(--gold);
+  font-family: inherit;
   font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="url"]:focus,
+input[type="search"]:focus,
+input:not([type]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 0 2px var(--gold-glow);
+}
+
+input::placeholder,
+textarea::placeholder {
   color: var(--text-dim);
-  margin-bottom: 24px;
-  transition: color 0.15s;
+  opacity: 0.7;
+}
+
+select {
   cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%238a7a60' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
 }
 
-.back-link:hover {
-  color: var(--gold);
-}
-
-.idea-page h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--gold);
-  margin-bottom: 8px;
-}
-
-.idea-desc {
-  font-size: 1.05rem;
+select option {
+  background: var(--bg-elevated);
   color: var(--text);
-  margin-bottom: 12px;
+}
+
+textarea {
+  resize: vertical;
   line-height: 1.5;
 }
 
-.demo-area {
-  border-top: 1px solid var(--border);
-  padding-top: 24px;
+/* Number inputs — hide spinners */
+input[type="number"] { -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Date inputs */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(1) saturate(2) hue-rotate(10deg);
+  cursor: pointer;
 }
+
+/* Color inputs */
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  cursor: pointer;
+  padding: 2px;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+input[type="color"]::-webkit-color-swatch { border: none; border-radius: 3px; }
+
 
 /* ========== Blazor Error UI ========== */
 #blazor-error-ui {

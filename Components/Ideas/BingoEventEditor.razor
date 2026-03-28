@@ -1,0 +1,231 @@
+@using hi_site_ideas_blazor.Models
+
+<div class="edit-panel">
+    <div class="edit-row">
+        <label>Title</label>
+        <input @bind="_draft.Title" placeholder="Event title" />
+    </div>
+
+    <div class="edit-row">
+        <label>Description</label>
+        <input @bind="_draft.Description" placeholder="Short event description" />
+    </div>
+
+    <div class="edit-row">
+        <label>Rules</label>
+        <textarea @bind="_draft.Rules" placeholder="Event rules (optional)" rows="4" style="resize: vertical"></textarea>
+    </div>
+
+    <div class="edit-row">
+        <label>Prizes</label>
+        <textarea @bind="_draft.Prizes" placeholder="Prize structure (optional)" rows="4" style="resize: vertical"></textarea>
+    </div>
+
+    <div class="edit-row-group">
+        <div class="edit-row">
+            <label>Board Size</label>
+            <select @bind="_boardSize">
+                <option value="3">3 x 3</option>
+                <option value="4">4 x 4</option>
+                <option value="5">5 x 5</option>
+            </select>
+        </div>
+        <div class="edit-row">
+            <label>Status</label>
+            <select @bind="_draft.Status">
+                @foreach (var s in Enum.GetValues<BingoEventStatus>())
+                {
+                    <option value="@s">@s</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="edit-row-group">
+        <div class="edit-row">
+            <label>Start Date</label>
+            <input type="date" @bind="_startsAt" />
+        </div>
+        <div class="edit-row">
+            <label>End Date</label>
+            <input type="date" @bind="_endsAt" />
+        </div>
+    </div>
+
+    <!-- Teams -->
+    <div class="edit-prizes">
+        <h4>Teams</h4>
+        @for (int i = 0; i < _draft.Teams.Count; i++)
+        {
+            var idx = i;
+            <div class="edit-prize-row">
+                <input @bind="_draft.Teams[idx].Name" placeholder="Team name" style="flex: 1" />
+                <input type="color" @bind="_draft.Teams[idx].Color" style="width: 40px; height: 32px; padding: 2px; cursor: pointer" />
+                <button class="edit-icon-btn" @onclick="() => _draft.Teams.RemoveAt(idx)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                    </svg>
+                </button>
+            </div>
+        }
+        <button class="add-prize-btn" @onclick="AddTeam">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14"/><path d="M12 5v14"/>
+            </svg>
+            Add Team
+        </button>
+    </div>
+
+    <!-- Tiles -->
+    <div class="edit-prizes">
+        <h4>Board Tiles (@(_boardSize * _boardSize) tiles)</h4>
+        <div class="tile-editor-grid" style="grid-template-columns: repeat(@_boardSize, 1fr)">
+            @for (int i = 0; i < _boardSize * _boardSize; i++)
+            {
+                var idx = i;
+                var tile = idx < _tiles.Count ? _tiles[idx] : null;
+                <button class="tile-editor-cell @(tile != null && !string.IsNullOrEmpty(tile.Title) ? "filled" : "")"
+                        @onclick="() => EditTile(idx)">
+                    @if (tile != null && !string.IsNullOrEmpty(tile.Title))
+                    {
+                        <span class="tile-editor-title">@tile.Title</span>
+                        @if (tile.Points > 1)
+                        {
+                            <span class="tile-editor-pts">@tile.Points pt</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="tile-editor-empty">@(idx + 1)</span>
+                    }
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (_editingTileIdx >= 0)
+    {
+        <div class="tile-edit-form">
+            <h4>Tile @(_editingTileIdx + 1)</h4>
+            <div class="edit-row">
+                <label>Title</label>
+                <input @bind="_editingTile.Title" placeholder="Tile title (e.g., Fire Cape)" />
+            </div>
+            <div class="edit-row">
+                <label>Description</label>
+                <input @bind="_editingTile.Description" placeholder="Details about this tile" />
+            </div>
+            <div class="edit-row-group">
+                <div class="edit-row">
+                    <label>Image URL</label>
+                    <input @bind="_editingTile.ImageUrl" placeholder="Optional image URL" />
+                </div>
+                <div class="edit-row">
+                    <label>Points</label>
+                    <input type="number" @bind="_editingTile.Points" min="1" />
+                </div>
+            </div>
+            <button class="save-btn" style="margin-top: 8px" @onclick="SaveTileEdit">Done</button>
+        </div>
+    }
+
+    <div class="edit-actions">
+        <button class="save-btn" @onclick="Save">@(IsNew ? "Create Event" : "Save")</button>
+        <button class="cancel-btn" @onclick="() => OnCancel.InvokeAsync()">Cancel</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public BingoEvent Event { get; set; } = new();
+    [Parameter] public bool IsNew { get; set; }
+    [Parameter] public EventCallback<BingoEvent> OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private BingoEvent _draft = new();
+    private List<BingoTile> _tiles = [];
+    private int _boardSize = 5;
+    private int _editingTileIdx = -1;
+    private BingoTile _editingTile = new();
+
+    private DateOnly? _startsAt;
+    private DateOnly? _endsAt;
+
+    protected override void OnInitialized()
+    {
+        _draft = new BingoEvent
+        {
+            Id = Event.Id,
+            Title = Event.Title,
+            Description = Event.Description,
+            Rules = Event.Rules,
+            Prizes = Event.Prizes,
+            BoardSize = Event.BoardSize,
+            Status = Event.Status,
+            StartsAt = Event.StartsAt,
+            EndsAt = Event.EndsAt,
+            Teams = Event.Teams.Select(t => new BingoTeam { Id = t.Id, Name = t.Name, Color = t.Color }).ToList(),
+        };
+        _boardSize = Event.BoardSize;
+        _startsAt = Event.StartsAt.HasValue ? DateOnly.FromDateTime(Event.StartsAt.Value) : null;
+        _endsAt = Event.EndsAt.HasValue ? DateOnly.FromDateTime(Event.EndsAt.Value) : null;
+
+        // Initialize tile list
+        _tiles = [];
+        for (int i = 0; i < _boardSize * _boardSize; i++)
+        {
+            var existing = Event.Tiles.FirstOrDefault(t => t.Position == i);
+            _tiles.Add(existing != null
+                ? new BingoTile { Position = i, Title = existing.Title, Description = existing.Description, ImageUrl = existing.ImageUrl, Points = existing.Points }
+                : new BingoTile { Position = i });
+        }
+    }
+
+    private void AddTeam()
+    {
+        var colors = new[] { "#ef4444", "#3b82f6", "#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316" };
+        var color = colors[_draft.Teams.Count % colors.Length];
+        _draft.Teams.Add(new BingoTeam { Name = "", Color = color });
+    }
+
+    private void EditTile(int idx)
+    {
+        // Ensure tiles list is big enough
+        while (_tiles.Count <= idx)
+            _tiles.Add(new BingoTile { Position = _tiles.Count });
+
+        _editingTileIdx = idx;
+        var tile = _tiles[idx];
+        _editingTile = new BingoTile
+        {
+            Position = idx,
+            Title = tile.Title,
+            Description = tile.Description,
+            ImageUrl = tile.ImageUrl,
+            Points = tile.Points > 0 ? tile.Points : 1,
+        };
+    }
+
+    private void SaveTileEdit()
+    {
+        if (_editingTileIdx >= 0 && _editingTileIdx < _tiles.Count)
+        {
+            _tiles[_editingTileIdx] = _editingTile;
+        }
+        _editingTileIdx = -1;
+    }
+
+    private async Task Save()
+    {
+        // Sync board size changes
+        while (_tiles.Count < _boardSize * _boardSize)
+            _tiles.Add(new BingoTile { Position = _tiles.Count });
+        _tiles = _tiles.Take(_boardSize * _boardSize).ToList();
+
+        _draft.BoardSize = _boardSize;
+        _draft.StartsAt = _startsAt?.ToDateTime(TimeOnly.MinValue);
+        _draft.EndsAt = _endsAt?.ToDateTime(TimeOnly.MinValue);
+        _draft.Tiles = _tiles;
+
+        await OnSave.InvokeAsync(_draft);
+    }
+}

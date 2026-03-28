@@ -133,6 +133,9 @@
   margin-top: 2px;
 }
 
+::deep .guessing-closes { color: var(--gold-dim); }
+::deep .guessing-closes.closed { color: #c0392b; }
+
 ::deep .giveaway-body {
   padding: 0 24px 24px;
   margin-top: 8px;
@@ -527,6 +530,34 @@
   flex: 1;
   border-radius: 12px 0 0 0;
 }
+
+::deep .discord-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+::deep .discord-btn:hover { color: #5865f2; background: var(--bg-elevated); }
+::deep .discord-btn:disabled { opacity: 0.5; cursor: default; }
+
+::deep .btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--text-dim);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 
 ::deep .edit-btn {
   display: flex;
