@@ -9,6 +9,7 @@ public class BingoEvent
     public string? Prizes { get; set; }
     public int BoardSize { get; set; } = 5;
     public BingoEventStatus Status { get; set; } = BingoEventStatus.Upcoming;
+    public bool Published { get; set; }
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -265,6 +266,7 @@ public static class BingoConstants
                 Prizes = "Main prize pool: 1,350m gp (+ 200m donated by BigKnobb)\n\n1st place: 100m gp per team member\n2nd place: 50m gp per team member\n\n1 bond per team member to the first team to complete any row, column, or diagonal (donated by XgodofironX)\n50m gp to the captain of the winning team (donated by iFencig / Geevs Uncle)\n20m gp to the captains of the top 3 teams (donated by TekThuan / LeThuanJames)\n1 bond to the MVP of the last place team (donated by iron ssgoku / apexofirons and Omav)\n\nMVP of each team will have their entry fee of 20m gp returned.\n\nRewards can be taken as-is or converted to bonds, depending on each participant's preference.",
                 BoardSize = 5,
                 Status = BingoEventStatus.Active,
+                Published = true,
                 StartsAt = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc),
                 EndsAt = new DateTime(2025, 9, 1, 1, 0, 0, DateTimeKind.Utc),
                 Tiles = tiles,

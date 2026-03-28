@@ -3,22 +3,22 @@
 <div class="edit-panel">
     <div class="edit-row">
         <label>Title</label>
-        <input @bind="_draft.Title" placeholder="Event title" />
+        <input @bind="_draft.Title" placeholder="e.g. Bingo 7" />
     </div>
 
     <div class="edit-row">
         <label>Description</label>
-        <input @bind="_draft.Description" placeholder="Short event description" />
+        <input @bind="_draft.Description" placeholder="Short event description (optional)" />
     </div>
 
     <div class="edit-row">
         <label>Rules</label>
-        <textarea @bind="_draft.Rules" placeholder="Event rules (optional)" rows="4" style="resize: vertical"></textarea>
+        <textarea @bind="_draft.Rules" placeholder="Event rules (optional)" rows="4"></textarea>
     </div>
 
     <div class="edit-row">
         <label>Prizes</label>
-        <textarea @bind="_draft.Prizes" placeholder="Prize structure (optional)" rows="4" style="resize: vertical"></textarea>
+        <textarea @bind="_draft.Prizes" placeholder="Prize structure (optional)" rows="4"></textarea>
     </div>
 
     <div class="edit-row-group">
@@ -52,29 +52,87 @@
         </div>
     </div>
 
+    <div class="edit-row" style="flex-direction: row; align-items: center; gap: 8px;">
+        <input type="checkbox" @bind="_draft.Published" id="published-check" style="width: auto; accent-color: var(--gold)" />
+        <label for="published-check" style="text-transform: none; font-size: 0.9rem; color: var(--text)">Published (visible to players)</label>
+    </div>
+
     <!-- Teams -->
     <div class="edit-prizes">
         <h4>Teams</h4>
         @for (int i = 0; i < _draft.Teams.Count; i++)
         {
             var idx = i;
+            var team = _draft.Teams[idx];
             <div class="edit-prize-row">
                 <input @bind="_draft.Teams[idx].Name" placeholder="Team name" style="flex: 1" />
-                <input type="color" @bind="_draft.Teams[idx].Color" style="width: 40px; height: 32px; padding: 2px; cursor: pointer" />
-                <button class="edit-icon-btn" @onclick="() => _draft.Teams.RemoveAt(idx)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                <input type="color" @bind="_draft.Teams[idx].Color" style="width: 40px; height: 32px" />
+                <button class="team-members-btn" @onclick="() => _editingTeamIdx = idx" title="Manage members">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                     </svg>
+                    @team.Members.Count
+                </button>
+                <button class="edit-icon-btn" @onclick="() => _draft.Teams.RemoveAt(idx)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
         }
-        <button class="add-prize-btn" @onclick="AddTeam">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14"/><path d="M12 5v14"/>
-            </svg>
-            Add Team
-        </button>
+        <button class="add-prize-btn" @onclick="AddTeam">+ Add Team</button>
     </div>
+
+    @if (_editingTeamIdx >= 0 && _editingTeamIdx < _draft.Teams.Count)
+    {
+        var editTeam = _draft.Teams[_editingTeamIdx];
+        <div class="modal-overlay" @onclick="() => _editingTeamIdx = -1">
+            <div class="modal-content" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h2>@(string.IsNullOrEmpty(editTeam.Name) ? "Team" : editTeam.Name) — Members</h2>
+                    <button class="modal-close" @onclick="() => _editingTeamIdx = -1">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="team-members-editor">
+                    @for (int mi = 0; mi < editTeam.Members.Count; mi++)
+                    {
+                        var mIdx = mi;
+                        <div class="member-row">
+                            <span class="member-number">@(mIdx + 1).</span>
+                            <input @bind="editTeam.Members[mIdx].Name" placeholder="Player name" style="flex: 1" />
+                            <button class="edit-icon-btn" @onclick="() => editTeam.Members.RemoveAt(mIdx)">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
+                        </div>
+                    }
+
+                    <div class="add-member-row">
+                        <div style="flex: 1; position: relative">
+                            <input @bind="_newMemberName" @bind:event="oninput" placeholder="Search members..." @onkeydown="e => HandleMemberKeydown(e, editTeam)" @onfocus="() => _showMemberDropdown = true" />
+                            @if (_showMemberDropdown && !string.IsNullOrWhiteSpace(_newMemberName))
+                            {
+                                var matches = FilteredMembers(editTeam);
+                                @if (matches.Any())
+                                {
+                                    <div class="member-dropdown">
+                                        @foreach (var name in matches.Take(8))
+                                        {
+                                            <button class="member-dropdown-item" @onclick="() => { _newMemberName = name; AddMember(editTeam); }">@name</button>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                        <button class="save-btn" style="padding: 6px 14px" @onclick="() => AddMember(editTeam)" disabled="@string.IsNullOrWhiteSpace(_newMemberName)">Add</button>
+                    </div>
+
+                    <p class="member-count">@editTeam.Members.Count members</p>
+                </div>
+            </div>
+        </div>
+    }
 
     <!-- Tiles -->
     <div class="edit-prizes">
@@ -84,15 +142,12 @@
             {
                 var idx = i;
                 var tile = idx < _tiles.Count ? _tiles[idx] : null;
-                <button class="tile-editor-cell @(tile != null && !string.IsNullOrEmpty(tile.Title) ? "filled" : "")"
+                <button class="tile-editor-cell @(tile != null && !string.IsNullOrEmpty(tile.Title) ? "filled" : "") @(_editingTileIdx == idx ? "editing" : "")"
                         @onclick="() => EditTile(idx)">
                     @if (tile != null && !string.IsNullOrEmpty(tile.Title))
                     {
                         <span class="tile-editor-title">@tile.Title</span>
-                        @if (tile.Points > 1)
-                        {
-                            <span class="tile-editor-pts">@tile.Points pt</span>
-                        }
+                        <span class="tile-editor-pts">@tile.Points pt</span>
                     }
                     else
                     {
@@ -105,32 +160,104 @@
 
     @if (_editingTileIdx >= 0)
     {
-        <div class="tile-edit-form">
-            <h4>Tile @(_editingTileIdx + 1)</h4>
-            <div class="edit-row">
-                <label>Title</label>
-                <input @bind="_editingTile.Title" placeholder="Tile title (e.g., Fire Cape)" />
-            </div>
-            <div class="edit-row">
-                <label>Description</label>
-                <input @bind="_editingTile.Description" placeholder="Details about this tile" />
-            </div>
-            <div class="edit-row-group">
-                <div class="edit-row">
-                    <label>Image URL</label>
-                    <input @bind="_editingTile.ImageUrl" placeholder="Optional image URL" />
+        <div class="modal-overlay" @onclick="SaveTileEdit">
+            <div class="modal-content modal-wide" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h2>Tile @(_editingTileIdx + 1)</h2>
+                    <button class="modal-close" @onclick="SaveTileEdit">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="edit-row">
-                    <label>Points</label>
-                    <input type="number" @bind="_editingTile.Points" min="1" />
+
+                <div class="tile-edit-form">
+                    <div class="edit-row">
+                        <label>Title</label>
+                        <input @bind="_editingTile.Title" placeholder="e.g. Perilous Barrows" />
+                    </div>
+                    <div class="edit-row">
+                        <label>Description</label>
+                        <textarea @bind="_editingTile.Description" placeholder="Tile details" rows="3"></textarea>
+                    </div>
+                    <div class="edit-row-group">
+                        <div class="edit-row">
+                            <label>Image URL</label>
+                            <input @bind="_editingTile.ImageUrl" placeholder="OSRS wiki image URL" />
+                        </div>
+                        <div class="edit-row">
+                            <label>Points</label>
+                            <input type="number" @bind="_editingTile.Points" min="1" />
+                        </div>
+                    </div>
+
+                    <!-- Requirement Groups -->
+                    <div class="req-editor">
+                        <h4>Requirements</h4>
+                        @for (int gi = 0; gi < _editingGroups.Count; gi++)
+                        {
+                            var gIdx = gi;
+                            var group = _editingGroups[gIdx];
+                            <div class="req-editor-group">
+                                <div class="req-editor-group-header">
+                                    <input @bind="group.Label" placeholder="Group name" style="flex: 1" />
+                                    <select @bind="group.Mode">
+                                        <option value="@RequirementMode.All">All required</option>
+                                        <option value="@RequirementMode.OneOf">Pick one</option>
+                                    </select>
+                                    <button class="edit-icon-btn" @onclick="() => _editingGroups.RemoveAt(gIdx)">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                    </button>
+                                </div>
+
+                                @for (int oi = 0; oi < group.Options.Count; oi++)
+                                {
+                                    var oIdx = oi;
+                                    var option = group.Options[oIdx];
+                                    <div class="req-editor-option">
+                                        @if (group.Mode == RequirementMode.OneOf)
+                                        {
+                                            <div class="req-editor-option-header">
+                                                <input @bind="option.Label" placeholder="Option name (e.g. Helm path)" style="flex: 1" />
+                                                <button class="edit-icon-btn" @onclick="() => group.Options.RemoveAt(oIdx)">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                </button>
+                                            </div>
+                                        }
+
+                                        @for (int ri = 0; ri < option.Reqs.Count; ri++)
+                                        {
+                                            var rIdx = ri;
+                                            var req = option.Reqs[rIdx];
+                                            <div class="req-editor-req">
+                                                <input @bind="req.Label" placeholder="Requirement (e.g. Verac's items)" style="flex: 1" />
+                                                <input type="number" @bind="req.Target" min="1" style="width: 70px" placeholder="#" />
+                                                <button class="edit-icon-btn" @onclick="() => option.Reqs.RemoveAt(rIdx)">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                </button>
+                                            </div>
+                                        }
+                                        <button class="add-prize-btn" @onclick="() => option.Reqs.Add(new ReqDraft())">+ Requirement</button>
+                                    </div>
+                                }
+
+                                @if (group.Mode == RequirementMode.OneOf)
+                                {
+                                    <button class="add-prize-btn" @onclick="() => group.Options.Add(new OptionDraft())">+ Option</button>
+                                }
+                            </div>
+                        }
+                        <button class="add-prize-btn" @onclick="AddGroup">+ Add Requirement Group</button>
+                    </div>
+
+                    <button class="save-btn" style="margin-top: 12px; width: 100%" @onclick="SaveTileEdit">Done</button>
                 </div>
             </div>
-            <button class="save-btn" style="margin-top: 8px" @onclick="SaveTileEdit">Done</button>
         </div>
     }
 
     <div class="edit-actions">
-        <button class="save-btn" @onclick="Save">@(IsNew ? "Create Event" : "Save")</button>
+        <button class="save-btn" @onclick="Save">@(IsNew ? "Create Bingo" : "Save")</button>
         <button class="cancel-btn" @onclick="() => OnCancel.InvokeAsync()">Cancel</button>
     </div>
 </div>
@@ -138,6 +265,7 @@
 @code {
     [Parameter] public BingoEvent Event { get; set; } = new();
     [Parameter] public bool IsNew { get; set; }
+    [Parameter] public IReadOnlyList<string> MemberNames { get; set; } = [];
     [Parameter] public EventCallback<BingoEvent> OnSave { get; set; }
     [Parameter] public EventCallback OnCancel { get; set; }
 
@@ -146,9 +274,33 @@
     private int _boardSize = 5;
     private int _editingTileIdx = -1;
     private BingoTile _editingTile = new();
+    private List<GroupDraft> _editingGroups = [];
+    private int _editingTeamIdx = -1;
+    private string _newMemberName = "";
+    private bool _showMemberDropdown;
 
     private DateOnly? _startsAt;
     private DateOnly? _endsAt;
+
+    // Draft classes for editing requirements
+    private class GroupDraft
+    {
+        public string Label { get; set; } = "Requirements";
+        public RequirementMode Mode { get; set; } = RequirementMode.All;
+        public List<OptionDraft> Options { get; set; } = [new()];
+    }
+
+    private class OptionDraft
+    {
+        public string Label { get; set; } = "";
+        public List<ReqDraft> Reqs { get; set; } = [new()];
+    }
+
+    private class ReqDraft
+    {
+        public string Label { get; set; } = "";
+        public int Target { get; set; } = 1;
+    }
 
     protected override void OnInitialized()
     {
@@ -161,24 +313,43 @@
             Prizes = Event.Prizes,
             BoardSize = Event.BoardSize,
             Status = Event.Status,
+            Published = Event.Published,
             StartsAt = Event.StartsAt,
             EndsAt = Event.EndsAt,
-            Teams = Event.Teams.Select(t => new BingoTeam { Id = t.Id, Name = t.Name, Color = t.Color }).ToList(),
+            Teams = Event.Teams.Select(t => new BingoTeam
+            {
+                Id = t.Id, Name = t.Name, Color = t.Color,
+                Members = t.Members.Select(m => new BingoTeamMember { Name = m.Name }).ToList(),
+            }).ToList(),
         };
         _boardSize = Event.BoardSize;
         _startsAt = Event.StartsAt.HasValue ? DateOnly.FromDateTime(Event.StartsAt.Value) : null;
         _endsAt = Event.EndsAt.HasValue ? DateOnly.FromDateTime(Event.EndsAt.Value) : null;
 
-        // Initialize tile list
         _tiles = [];
         for (int i = 0; i < _boardSize * _boardSize; i++)
         {
             var existing = Event.Tiles.FirstOrDefault(t => t.Position == i);
             _tiles.Add(existing != null
-                ? new BingoTile { Position = i, Title = existing.Title, Description = existing.Description, ImageUrl = existing.ImageUrl, Points = existing.Points }
+                ? CloneTile(existing, i)
                 : new BingoTile { Position = i });
         }
     }
+
+    private BingoTile CloneTile(BingoTile src, int pos) => new()
+    {
+        Position = pos, Title = src.Title, Description = src.Description,
+        ImageUrl = src.ImageUrl, Points = src.Points,
+        RequirementGroups = src.RequirementGroups.Select(g => new BingoRequirementGroup
+        {
+            Label = g.Label, Mode = g.Mode,
+            Options = g.Options.Select(o => new BingoRequirementOption
+            {
+                Label = o.Label,
+                Requirements = o.Requirements.Select(r => new BingoRequirement { Label = r.Label, TargetCount = r.TargetCount }).ToList(),
+            }).ToList(),
+        }).ToList(),
+    };
 
     private void AddTeam()
     {
@@ -187,9 +358,46 @@
         _draft.Teams.Add(new BingoTeam { Name = "", Color = color });
     }
 
+    private void AddMember(BingoTeam team)
+    {
+        if (string.IsNullOrWhiteSpace(_newMemberName)) return;
+        team.Members.Add(new BingoTeamMember { Name = _newMemberName.Trim() });
+        _newMemberName = "";
+        _showMemberDropdown = false;
+    }
+
+    private void HandleMemberKeydown(KeyboardEventArgs e, BingoTeam team)
+    {
+        if (e.Key == "Enter")
+        {
+            var matches = FilteredMembers(team);
+            if (matches.Any()) _newMemberName = matches.First();
+            AddMember(team);
+        }
+        else if (e.Key == "Escape")
+        {
+            _showMemberDropdown = false;
+        }
+    }
+
+    private List<string> FilteredMembers(BingoTeam team)
+    {
+        if (string.IsNullOrWhiteSpace(_newMemberName)) return [];
+        var existing = team.Members.Select(m => m.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return MemberNames
+            .Where(n => n.Contains(_newMemberName, StringComparison.OrdinalIgnoreCase) && !existing.Contains(n))
+            .OrderBy(n => !n.StartsWith(_newMemberName, StringComparison.OrdinalIgnoreCase))
+            .ThenBy(n => n)
+            .ToList();
+    }
+
+    private void AddGroup()
+    {
+        _editingGroups.Add(new GroupDraft());
+    }
+
     private void EditTile(int idx)
     {
-        // Ensure tiles list is big enough
         while (_tiles.Count <= idx)
             _tiles.Add(new BingoTile { Position = _tiles.Count });
 
@@ -203,20 +411,51 @@
             ImageUrl = tile.ImageUrl,
             Points = tile.Points > 0 ? tile.Points : 1,
         };
+
+        // Convert existing requirement groups to drafts
+        _editingGroups = tile.RequirementGroups.Select(g => new GroupDraft
+        {
+            Label = g.Label,
+            Mode = g.Mode,
+            Options = g.Options.Select(o => new OptionDraft
+            {
+                Label = o.Label,
+                Reqs = o.Requirements.Select(r => new ReqDraft { Label = r.Label, Target = r.TargetCount }).ToList(),
+            }).ToList(),
+        }).ToList();
     }
 
     private void SaveTileEdit()
     {
         if (_editingTileIdx >= 0 && _editingTileIdx < _tiles.Count)
         {
+            // Convert drafts back to model
+            _editingTile.RequirementGroups = _editingGroups
+                .Where(g => g.Options.Any(o => o.Reqs.Any(r => !string.IsNullOrWhiteSpace(r.Label))))
+                .Select(g => new BingoRequirementGroup
+                {
+                    Label = g.Label,
+                    Mode = g.Mode,
+                    Options = g.Options
+                        .Where(o => o.Reqs.Any(r => !string.IsNullOrWhiteSpace(r.Label)))
+                        .Select(o => new BingoRequirementOption
+                        {
+                            Label = g.Mode == RequirementMode.OneOf ? o.Label : g.Label,
+                            Requirements = o.Reqs
+                                .Where(r => !string.IsNullOrWhiteSpace(r.Label))
+                                .Select(r => new BingoRequirement { Label = r.Label, TargetCount = Math.Max(1, r.Target) })
+                                .ToList(),
+                        }).ToList(),
+                }).ToList();
+
             _tiles[_editingTileIdx] = _editingTile;
         }
         _editingTileIdx = -1;
+        _editingGroups = [];
     }
 
     private async Task Save()
     {
-        // Sync board size changes
         while (_tiles.Count < _boardSize * _boardSize)
             _tiles.Add(new BingoTile { Position = _tiles.Count });
         _tiles = _tiles.Take(_boardSize * _boardSize).ToList();

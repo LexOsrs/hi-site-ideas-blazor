@@ -45,7 +45,7 @@
     <div class="bingo-body">
             @if (_editing)
             {
-                <BingoEventEditor Event="@Event" OnSave="HandleSave" OnCancel="() => _editing = false" />
+                <BingoEventEditor Event="@Event" MemberNames="@MemberNames" OnSave="HandleSave" OnCancel="() => _editing = false" />
             }
             else
             {
@@ -168,6 +168,7 @@
     [Parameter] public bool DefaultOpen { get; set; }
     [Parameter] public bool IsAdmin { get; set; }
     [Parameter] public int? UserTeamId { get; set; }
+    [Parameter] public IReadOnlyList<string> MemberNames { get; set; } = [];
     [Parameter] public EventCallback<BingoEvent> OnUpdate { get; set; }
     [Parameter] public EventCallback<BingoEvent> OnDelete { get; set; }
 

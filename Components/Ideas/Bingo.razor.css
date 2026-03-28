@@ -1216,6 +1216,160 @@
   margin-bottom: 10px;
 }
 
+::deep .tile-editor-cell.editing {
+  border-color: var(--gold);
+  border-style: solid;
+  background: rgba(255, 152, 31, 0.08);
+}
+
+/* ========== Requirement Editor ========== */
+/* ========== Team Members ========== */
+::deep .team-members-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+::deep .team-members-btn:hover {
+  border-color: var(--gold-dim);
+  color: var(--gold);
+}
+
+::deep .team-members-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+::deep .member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+::deep .member-number {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  min-width: 24px;
+  text-align: right;
+}
+
+::deep .add-member-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+::deep .member-dropdown {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 20;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+}
+
+::deep .member-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+::deep .member-dropdown-item:hover {
+  background: rgba(255, 152, 31, 0.08);
+  color: var(--gold);
+}
+
+::deep .member-count {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+::deep .req-editor {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
+::deep .req-editor > h4 {
+  font-size: 0.9rem;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+::deep .req-editor-group {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+
+::deep .req-editor-group-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+::deep .req-editor-group-header select {
+  width: 140px;
+  flex-shrink: 0;
+  font-size: 0.82rem;
+}
+
+::deep .req-editor-option {
+  margin: 6px 0 6px 12px;
+  padding: 8px;
+  border-left: 2px solid var(--border-light);
+}
+
+::deep .req-editor-option-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+::deep .req-editor-req {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+::deep .req-editor-req input[type="number"] {
+  text-align: center;
+}
+
 /* ========== Edit Panel (shared with giveaways) ========== */
 ::deep .edit-panel {
   display: flex;

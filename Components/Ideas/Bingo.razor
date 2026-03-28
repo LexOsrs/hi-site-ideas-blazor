@@ -50,7 +50,7 @@
                 @foreach (var ev in PastEvents)
                 {
                     <BingoEventCard @key="ev.Id" Event="@ev" DefaultOpen="@(PastEvents.Count == 1)"
-                        IsAdmin="@_isAdmin" UserTeamId="@_userTeam?.Id"
+                        IsAdmin="@_isAdmin" UserTeamId="@_userTeam?.Id" MemberNames="@_memberNames"
                         OnUpdate="UpdateEvent" OnDelete="DeleteEvent" />
                 }
             </div>
@@ -68,7 +68,7 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M5 12h14"/><path d="M12 5v14"/>
                 </svg>
-                New Event
+                New Bingo
             </button>
         }
 
@@ -77,14 +77,14 @@
             <div class="modal-overlay" @onclick="() => _showNewModal = false">
                 <div class="modal-content modal-wide" @onclick:stopPropagation="true">
                     <div class="modal-header">
-                        <h2>New Bingo Event</h2>
+                        <h2>New Bingo</h2>
                         <button class="modal-close" @onclick="() => _showNewModal = false">
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
                             </svg>
                         </button>
                     </div>
-                    <BingoEventEditor Event="@_blankEvent" IsNew="true" OnSave="HandleNewSave" OnCancel="() => _showNewModal = false" />
+                    <BingoEventEditor Event="@_blankEvent" IsNew="true" MemberNames="@_memberNames" OnSave="HandleNewSave" OnCancel="() => _showNewModal = false" />
                 </div>
             </div>
         }
@@ -92,7 +92,7 @@
         @if (ActiveEvent != null)
         {
             <BingoEventCard Event="@ActiveEvent" DefaultOpen="true"
-                IsAdmin="@_isAdmin" UserTeamId="@_userTeam?.Id"
+                IsAdmin="@_isAdmin" UserTeamId="@_userTeam?.Id" MemberNames="@_memberNames"
                 OnUpdate="UpdateEvent" OnDelete="DeleteEvent" />
         }
         else
@@ -112,6 +112,7 @@
 
     private bool _showNewModal;
     private List<BingoEvent> _events = [];
+    private List<string> _memberNames = [];
     private BingoTeam? _userTeam;
 
     protected override async Task OnInitializedAsync()
@@ -125,14 +126,18 @@
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync();
 
+        _memberNames = await db.Members.OrderBy(m => m.DisplayName).Select(m => m.DisplayName).ToListAsync();
+
         _userTeam = _events
             .SelectMany(e => e.Teams)
             .FirstOrDefault(t => t.Members.Any(m => m.Name.Equals(CurrentUser, StringComparison.OrdinalIgnoreCase)));
     }
 
-    private BingoEvent? ActiveEvent => _events.FirstOrDefault(e => e.Status != BingoEventStatus.Completed);
+    private List<BingoEvent> VisibleEvents => _isAdmin ? _events : _events.Where(e => e.Published).ToList();
 
-    private List<BingoEvent> PastEvents => _events
+    private BingoEvent? ActiveEvent => VisibleEvents.FirstOrDefault(e => e.Status != BingoEventStatus.Completed);
+
+    private List<BingoEvent> PastEvents => VisibleEvents
         .Where(e => e.Status == BingoEventStatus.Completed).ToList();
 
     private BingoEvent _blankEvent => new()
@@ -155,6 +160,7 @@
     {
         await using var db = await DbFactory.CreateDbContextAsync();
         var existing = await db.BingoEvents
+            .Include(e => e.Tiles).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
             .Include(e => e.Tiles).ThenInclude(t => t.TeamTiles)
             .Include(e => e.Teams).ThenInclude(t => t.TeamTiles)
             .FirstOrDefaultAsync(e => e.Id == updated.Id);
@@ -166,15 +172,37 @@
         existing.Prizes = updated.Prizes;
         existing.BoardSize = updated.BoardSize;
         existing.Status = updated.Status;
+        existing.Published = updated.Published;
         existing.StartsAt = updated.StartsAt;
         existing.EndsAt = updated.EndsAt;
 
+        // Remove old tiles and their requirements
+        foreach (var tile in existing.Tiles)
+        {
+            foreach (var group in tile.RequirementGroups)
+            {
+                foreach (var option in group.Options)
+                    db.BingoRequirements.RemoveRange(option.Requirements);
+                db.BingoRequirementOptions.RemoveRange(group.Options);
+            }
+            db.BingoRequirementGroups.RemoveRange(tile.RequirementGroups);
+        }
         db.BingoTeamTiles.RemoveRange(existing.Tiles.SelectMany(t => t.TeamTiles));
         db.BingoTiles.RemoveRange(existing.Tiles);
+
         existing.Tiles = updated.Tiles.Select(t => new BingoTile
         {
             Position = t.Position, Title = t.Title, Description = t.Description,
             ImageUrl = t.ImageUrl, Points = t.Points,
+            RequirementGroups = t.RequirementGroups.Select(g => new BingoRequirementGroup
+            {
+                Label = g.Label, Mode = g.Mode,
+                Options = g.Options.Select(o => new BingoRequirementOption
+                {
+                    Label = o.Label,
+                    Requirements = o.Requirements.Select(r => new BingoRequirement { Label = r.Label, TargetCount = r.TargetCount }).ToList(),
+                }).ToList(),
+            }).ToList(),
         }).ToList();
 
         db.BingoTeamTiles.RemoveRange(existing.Teams.SelectMany(t => t.TeamTiles));
@@ -182,6 +210,7 @@
         existing.Teams = updated.Teams.Select(t => new BingoTeam
         {
             Name = t.Name, Color = t.Color,
+            Members = t.Members.Select(m => new BingoTeamMember { Name = m.Name }).ToList(),
         }).ToList();
 
         await db.SaveChangesAsync();
