@@ -244,12 +244,20 @@
                                                             <option value="@label" selected="@(label == e.RequirementLabel)">@label</option>
                                                         }
                                                     </select>
-                                                    <input type="number" class="review-amount-input" value="@e.Amount" @onchange="v => e.Amount = int.TryParse(v.Value?.ToString(), out var val) ? val : e.Amount" min="0" />
+                                                    <input type="number" class="review-amount-input" value="@e.Amount" @onchange="v => e.Amount = int.TryParse(v.Value?.ToString(), out var val) ? val : e.Amount" min="1" />
+                                                    <button class="edit-icon-btn" @onclick="() => sub.Entries.Remove(e)">
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                    </button>
                                                 </div>
                                             }
+                                            <button class="add-prize-btn" @onclick="() => AddEntryToSubmission(sub)">+ Add item</button>
                                         }
                                         <div class="review-buttons">
-                                            <button class="approve-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Approved)">Approve</button>
+                                            @{
+                                                var canApprove = sub.Type == SubmissionType.Start || sub.Entries.Any(e => !string.IsNullOrWhiteSpace(e.RequirementLabel) && e.Amount > 0);
+                                            }
+                                            <button class="approve-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Approved)" disabled="@(!canApprove)"
+                                                    title="@(!canApprove ? "Add at least one item before approving" : "")">Approve</button>
                                             <button class="deny-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Denied)">Deny</button>
                                         </div>
                                     </div>
@@ -295,6 +303,48 @@
                                 {
                                     <p class="submission-caption">@sub.Caption</p>
                                 }
+                                @if (IsAdmin)
+                                {
+                                    @if (_editingSubmissionId == sub.Id)
+                                    {
+                                        <div class="review-actions">
+                                            @if (sub.Type == SubmissionType.Progress)
+                                            {
+                                                @foreach (var entry in sub.Entries)
+                                                {
+                                                    var e = entry;
+                                                    <div class="review-entry-row">
+                                                        <select class="review-label-select" value="@e.RequirementLabel" @onchange="v => e.RequirementLabel = v.Value?.ToString() ?? e.RequirementLabel">
+                                                            @foreach (var label in AllRequirementLabels)
+                                                            {
+                                                                <option value="@label" selected="@(label == e.RequirementLabel)">@label</option>
+                                                            }
+                                                        </select>
+                                                        <input type="number" class="review-amount-input" value="@e.Amount" @onchange="v => e.Amount = int.TryParse(v.Value?.ToString(), out var val) ? val : e.Amount" min="1" />
+                                                        <button class="edit-icon-btn" @onclick="() => sub.Entries.Remove(e)">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                        </button>
+                                                    </div>
+                                                }
+                                                <button class="add-prize-btn" @onclick="() => AddEntryToSubmission(sub)">+ Add item</button>
+                                            }
+                                            <div class="review-buttons">
+                                                <button class="save-btn" style="padding: 5px 14px; font-size: 0.82rem" @onclick="() => SaveEntryEdits(sub)">Save</button>
+                                                <button class="cancel-btn" style="padding: 5px 14px; font-size: 0.82rem" @onclick="() => _editingSubmissionId = null">Cancel</button>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="submission-admin-actions">
+                                            @if (sub.Type == SubmissionType.Progress)
+                                            {
+                                                <button class="submission-action-link" @onclick="() => _editingSubmissionId = sub.Id">Edit items</button>
+                                            }
+                                            <button class="submission-action-link danger" @onclick="() => DeleteSubmission(sub)">Delete</button>
+                                        </div>
+                                    }
+                                }
                             </div>
                         }
                     </div>
@@ -316,6 +366,13 @@
                                 @if (!string.IsNullOrEmpty(sub.Caption))
                                 {
                                     <p class="submission-caption">@sub.Caption</p>
+                                }
+                                @if (IsAdmin)
+                                {
+                                    <div class="submission-admin-actions">
+                                        <button class="submission-action-link" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Pending)">Re-open</button>
+                                        <button class="submission-action-link danger" @onclick="() => DeleteSubmission(sub)">Delete</button>
+                                    </div>
                                 }
                             </div>
                         }
@@ -347,6 +404,7 @@
 
     private string _tab = "details";
     private string? _lightboxUrl;
+    private int? _editingSubmissionId;
     private SubmissionType _submissionType = SubmissionType.Progress;
     private List<EntryDraft> _entries = [];
     private string _imageUrl = "";
@@ -418,6 +476,45 @@
         return ("Not Started", "notstarted");
     }
 
+    private async Task DeleteSubmission(BingoSubmission sub)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var entity = await db.BingoSubmissions.Include(s => s.Entries).FirstOrDefaultAsync(s => s.Id == sub.Id);
+        if (entity == null) return;
+
+        db.BingoSubmissionEntries.RemoveRange(entity.Entries);
+        db.BingoSubmissions.Remove(entity);
+        await db.SaveChangesAsync();
+
+        // Remove from in-memory
+        var teamTile = Tile.TeamTiles.FirstOrDefault(tt => tt.Submissions.Contains(sub));
+        teamTile?.Submissions.Remove(sub);
+    }
+
+    private async Task SaveEntryEdits(BingoSubmission sub)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var entity = await db.BingoSubmissions.Include(s => s.Entries).FirstOrDefaultAsync(s => s.Id == sub.Id);
+        if (entity == null) return;
+
+        db.BingoSubmissionEntries.RemoveRange(entity.Entries);
+        entity.Entries = sub.Entries
+            .Where(e => !string.IsNullOrWhiteSpace(e.RequirementLabel) && e.Amount > 0)
+            .Select(e => new BingoSubmissionEntry { RequirementLabel = e.RequirementLabel, Amount = e.Amount })
+            .ToList();
+        await db.SaveChangesAsync();
+
+        // Update in-memory
+        sub.Entries = entity.Entries;
+        _editingSubmissionId = null;
+    }
+
+    private void AddEntryToSubmission(BingoSubmission sub)
+    {
+        var labels = AllRequirementLabels;
+        sub.Entries.Add(new BingoSubmissionEntry { RequirementLabel = labels.FirstOrDefault() ?? "", Amount = 1 });
+    }
+
     private async Task SubmitScreenshot()
     {
         if (string.IsNullOrWhiteSpace(_imageUrl) || !SelectedTeamId.HasValue) return;
@@ -469,6 +566,11 @@
 
     private async Task ReviewSubmission(BingoSubmission sub, SubmissionStatus newStatus)
     {
+        // Block approving progress submissions without items
+        if (newStatus == SubmissionStatus.Approved && sub.Type == SubmissionType.Progress
+            && !sub.Entries.Any(e => !string.IsNullOrWhiteSpace(e.RequirementLabel) && e.Amount > 0))
+            return;
+
         await using var db = await DbFactory.CreateDbContextAsync();
         var entity = await db.BingoSubmissions.Include(s => s.Entries).FirstOrDefaultAsync(s => s.Id == sub.Id);
         if (entity == null) return;

@@ -173,6 +173,7 @@
         existing.BoardSize = updated.BoardSize;
         existing.Status = updated.Status;
         existing.Published = updated.Published;
+        existing.LineBonusPoints = updated.LineBonusPoints;
         existing.StartsAt = updated.StartsAt;
         existing.EndsAt = updated.EndsAt;
 
@@ -205,13 +206,49 @@
             }).ToList(),
         }).ToList();
 
-        db.BingoTeamTiles.RemoveRange(existing.Teams.SelectMany(t => t.TeamTiles));
-        db.BingoTeams.RemoveRange(existing.Teams);
-        existing.Teams = updated.Teams.Select(t => new BingoTeam
+        // Update existing teams, add new ones, remove deleted ones — without nuking team tiles/submissions
+        var existingTeamIds = existing.Teams.Select(t => t.Id).ToHashSet();
+        var updatedTeamIds = updated.Teams.Where(t => t.Id > 0).Select(t => t.Id).ToHashSet();
+
+        // Remove teams that were deleted
+        var teamsToRemove = existing.Teams.Where(t => !updatedTeamIds.Contains(t.Id)).ToList();
+        foreach (var team in teamsToRemove)
         {
-            Name = t.Name, Color = t.Color,
-            Members = t.Members.Select(m => new BingoTeamMember { Name = m.Name }).ToList(),
-        }).ToList();
+            var teamTiles = await db.BingoTeamTiles
+                .Include(tt => tt.Submissions).ThenInclude(s => s.Entries)
+                .Where(tt => tt.BingoTeamId == team.Id).ToListAsync();
+            foreach (var tt in teamTiles)
+            {
+                foreach (var sub in tt.Submissions)
+                    db.BingoSubmissionEntries.RemoveRange(sub.Entries);
+                db.BingoSubmissions.RemoveRange(tt.Submissions);
+            }
+            db.BingoTeamTiles.RemoveRange(teamTiles);
+            db.BingoTeamMembers.RemoveRange(team.Members);
+            db.BingoTeams.Remove(team);
+        }
+
+        // Update existing teams
+        foreach (var updatedTeam in updated.Teams.Where(t => t.Id > 0))
+        {
+            var existingTeam = existing.Teams.FirstOrDefault(t => t.Id == updatedTeam.Id);
+            if (existingTeam == null) continue;
+            existingTeam.Name = updatedTeam.Name;
+            existingTeam.Color = updatedTeam.Color;
+            // Replace members
+            db.BingoTeamMembers.RemoveRange(existingTeam.Members);
+            existingTeam.Members = updatedTeam.Members.Select(m => new BingoTeamMember { Name = m.Name }).ToList();
+        }
+
+        // Add new teams (Id == 0)
+        foreach (var newTeam in updated.Teams.Where(t => t.Id == 0))
+        {
+            existing.Teams.Add(new BingoTeam
+            {
+                Name = newTeam.Name, Color = newTeam.Color,
+                Members = newTeam.Members.Select(m => new BingoTeamMember { Name = m.Name }).ToList(),
+            });
+        }
 
         await db.SaveChangesAsync();
 

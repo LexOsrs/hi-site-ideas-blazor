@@ -25,6 +25,7 @@
         <div class="edit-row">
             <label>Board Size</label>
             <select @bind="_boardSize">
+                <option value="2">2 x 2</option>
                 <option value="3">3 x 3</option>
                 <option value="4">4 x 4</option>
                 <option value="5">5 x 5</option>
@@ -49,6 +50,10 @@
         <div class="edit-row">
             <label>End Date</label>
             <input type="date" @bind="_endsAt" />
+        </div>
+        <div class="edit-row">
+            <label>Line Bonus (pts)</label>
+            <input type="number" @bind="_draft.LineBonusPoints" min="0" />
         </div>
     </div>
 
@@ -314,6 +319,7 @@
             BoardSize = Event.BoardSize,
             Status = Event.Status,
             Published = Event.Published,
+            LineBonusPoints = Event.LineBonusPoints,
             StartsAt = Event.StartsAt,
             EndsAt = Event.EndsAt,
             Teams = Event.Teams.Select(t => new BingoTeam

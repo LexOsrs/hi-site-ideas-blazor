@@ -73,6 +73,16 @@
   margin-bottom: 8px;
 }
 
+::deep .line-bonus-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  color: var(--gold-dim);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
 ::deep .team-roster {
   display: flex;
   flex-direction: column;
@@ -807,7 +817,8 @@
 
 ::deep .review-actions {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid var(--border);
 }
@@ -884,12 +895,43 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  margin-bottom: 4px;
 }
+
+::deep .review-label-select { flex: 1; font-size: 0.8rem; }
+::deep .review-amount-input { width: 60px; font-size: 0.8rem; text-align: center; }
 
 ::deep .review-buttons {
   display: flex;
   gap: 6px;
+}
+
+::deep .submission-admin-actions {
+  display: flex;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding: 6px 12px;
+}
+
+::deep .submission-action-link {
+  padding: 3px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+::deep .submission-action-link:hover {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+}
+
+::deep .submission-action-link.danger:hover {
+  color: var(--red);
+  border-color: var(--red);
 }
 
 ::deep .empty-screenshots {
@@ -989,6 +1031,85 @@
   cursor: default;
 }
 
+/* ========== Discord Setup ========== */
+::deep .discord-setup {
+  margin-bottom: 16px;
+}
+
+::deep .discord-setup-status {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+::deep .discord-setup-body {
+  padding: 12px 0 4px;
+}
+
+::deep .discord-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+::deep .discord-table th {
+  text-align: left;
+  padding: 6px 8px;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--border);
+}
+
+::deep .discord-table td {
+  padding: 8px 8px;
+  border-bottom: 1px solid rgba(61, 51, 36, 0.4);
+  vertical-align: middle;
+}
+
+::deep .discord-ok { color: var(--green); font-weight: 600; }
+::deep .discord-partial { color: var(--gold); font-weight: 600; }
+::deep .discord-missing { color: var(--text-dim); }
+
+::deep .discord-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #5865f2;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+::deep .discord-link:hover { color: #7289da; }
+
+::deep .discord-hint {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+::deep .discord-hint code {
+  background: var(--bg-elevated);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+}
+
+::deep .discord-actions {
+  display: flex;
+  gap: 8px;
+}
+
+::deep .discord-status-msg {
+  font-size: 0.85rem;
+  color: var(--gold);
+  padding: 6px 0;
+  font-weight: 600;
+}
+
 /* ========== Pending Review Section ========== */
 ::deep .pending-review-section {
   background: var(--bg-elevated);
@@ -1032,10 +1153,31 @@
   border-bottom: 1px solid var(--border);
 }
 
+::deep .pending-team-name {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
 ::deep .pending-tile-name {
   font-size: 0.88rem;
   color: var(--text-bright);
   font-weight: 600;
+}
+
+::deep .pending-items-section {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+::deep .pending-card-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
 }
 
 ::deep .pending-card-body {

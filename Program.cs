@@ -285,6 +285,179 @@ bingo.MapPut("/submissions/{submissionId:int}/review", async (int submissionId, 
     return Results.Ok(new { sub.Id, Status = status.ToString() });
 });
 
+// Discord integration endpoints
+bingo.MapPost("/discord/submit", async (DiscordSubmitRequest req, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+
+    // Find team tile by Discord thread ID
+    var teamTile = await db.BingoTeamTiles
+        .Include(tt => tt.Tile)
+        .Include(tt => tt.Team).ThenInclude(t => t.Members)
+        .FirstOrDefaultAsync(tt => tt.DiscordThreadId == req.ThreadId);
+
+    if (teamTile == null) return Results.NotFound("No tile found for this thread");
+
+    // Verify player is on this team
+    var playerName = req.PlayerName;
+    var team = teamTile.Team;
+
+    var sub = new BingoSubmission
+    {
+        BingoTeamTileId = teamTile.Id,
+        SubmittedBy = playerName,
+        ImageUrl = req.ImageUrl,
+        Caption = req.Caption,
+        DiscordMessageId = req.MessageId,
+        Type = req.IsStart ? SubmissionType.Start : SubmissionType.Progress,
+        Status = SubmissionStatus.Pending,
+    };
+    db.BingoSubmissions.Add(sub);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { sub.Id, TileTitle = teamTile.Tile.Title, TeamName = team.Name, sub.Status });
+});
+
+bingo.MapPut("/discord/teams/{teamId:int}/channel", async (int teamId, SetChannelRequest req, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var team = await db.BingoTeams.FindAsync(teamId);
+    if (team == null) return Results.NotFound();
+    team.DiscordChannelId = req.ChannelId;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { team.Id, team.Name, req.ChannelId });
+});
+
+bingo.MapPut("/discord/teamtiles/{teamTileId:int}/thread", async (int teamTileId, SetThreadRequest req, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var tt = await db.BingoTeamTiles.FindAsync(teamTileId);
+    if (tt == null) return Results.NotFound();
+    tt.DiscordThreadId = req.ThreadId;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { tt.Id, req.ThreadId });
+});
+
+bingo.MapGet("/discord/event/{eventId:int}/teams", async (int eventId, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var teams = await db.BingoTeams
+        .Where(t => t.BingoEventId == eventId)
+        .Select(t => new { t.Id, t.Name, t.DiscordChannelId })
+        .ToListAsync();
+    return Results.Ok(teams);
+});
+
+bingo.MapGet("/discord/event/{eventId:int}/tiles", async (int eventId, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var tiles = await db.BingoTiles
+        .Where(t => t.BingoEventId == eventId)
+        .OrderBy(t => t.Position)
+        .Select(t => new { t.Id, t.Position, t.Title, t.Points })
+        .ToListAsync();
+    return Results.Ok(tiles);
+});
+
+bingo.MapGet("/discord/event/{eventId:int}/teamtiles", async (int eventId, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var teamTiles = await db.BingoTeamTiles
+        .Include(tt => tt.Tile)
+        .Include(tt => tt.Team)
+        .Where(tt => tt.Tile.BingoEventId == eventId)
+        .Select(tt => new { tt.Id, TeamId = tt.BingoTeamId, TeamName = tt.Team.Name, TileId = tt.BingoTileId, TileTitle = tt.Tile.Title, tt.DiscordThreadId })
+        .ToListAsync();
+    return Results.Ok(teamTiles);
+});
+
+bingo.MapGet("/discord/submission/by-message/{messageId}", async (ulong messageId, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var sub = await db.BingoSubmissions
+        .Include(s => s.Entries)
+        .FirstOrDefaultAsync(s => s.DiscordMessageId == messageId);
+    if (sub == null) return Results.NotFound();
+
+    var teamTile = await db.BingoTeamTiles
+        .Include(tt => tt.Tile).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+        .Include(tt => tt.Team)
+        .FirstOrDefaultAsync(tt => tt.Id == sub.BingoTeamTileId);
+
+    var requirementLabels = teamTile?.Tile.RequirementGroups
+        .SelectMany(g => g.Options).SelectMany(o => o.Requirements)
+        .Select(r => r.Label).Distinct().ToList() ?? [];
+
+    return Results.Ok(new
+    {
+        sub.Id, sub.SubmittedBy, sub.ImageUrl, sub.Caption, sub.DiscordMessageId,
+        Status = sub.Status.ToString(), Type = sub.Type.ToString(),
+        TileTitle = teamTile?.Tile.Title,
+        TeamName = teamTile?.Team.Name,
+        Entries = sub.Entries.Select(e => new { e.RequirementLabel, e.Amount }),
+        RequirementLabels = requirementLabels,
+    });
+});
+
+bingo.MapGet("/discord/submission/{submissionId:int}", async (int submissionId, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var sub = await db.BingoSubmissions
+        .Include(s => s.Entries)
+        .FirstOrDefaultAsync(s => s.Id == submissionId);
+    if (sub == null) return Results.NotFound();
+
+    var teamTile = await db.BingoTeamTiles
+        .Include(tt => tt.Tile).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+        .FirstOrDefaultAsync(tt => tt.Id == sub.BingoTeamTileId);
+
+    var requirementLabels = teamTile?.Tile.RequirementGroups
+        .SelectMany(g => g.Options).SelectMany(o => o.Requirements)
+        .Select(r => r.Label).Distinct().ToList() ?? [];
+
+    return Results.Ok(new
+    {
+        sub.Id, sub.SubmittedBy, sub.ImageUrl, sub.Caption, sub.DiscordMessageId,
+        Status = sub.Status.ToString(), Type = sub.Type.ToString(),
+        TileTitle = teamTile?.Tile.Title,
+        Entries = sub.Entries.Select(e => new { e.RequirementLabel, e.Amount }),
+        RequirementLabels = requirementLabels,
+    });
+});
+
+bingo.MapPut("/discord/submission/{submissionId:int}/review", async (int submissionId, DiscordReviewRequest req, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var sub = await db.BingoSubmissions.Include(s => s.Entries).FirstOrDefaultAsync(s => s.Id == submissionId);
+    if (sub == null) return Results.NotFound();
+
+    if (!Enum.TryParse<SubmissionStatus>(req.Status, true, out var status) || status == SubmissionStatus.Pending)
+        return Results.BadRequest("Status must be Approved or Denied");
+
+    // Progress submissions need at least one entry to be approved
+    if (status == SubmissionStatus.Approved && sub.Type == SubmissionType.Progress)
+    {
+        var entries = req.Entries ?? [];
+        var hasEntries = sub.Entries.Any(e => !string.IsNullOrEmpty(e.RequirementLabel) && e.Amount > 0)
+            || entries.Any(e => !string.IsNullOrEmpty(e.Label) && e.Amount > 0);
+        if (!hasEntries)
+            return Results.BadRequest("Progress submissions need at least one item assigned before approval");
+    }
+
+    sub.Status = status;
+    sub.ReviewedBy = req.ReviewedBy ?? "Moderator";
+    sub.ReviewedAt = DateTime.UtcNow;
+
+    if (req.Entries != null)
+    {
+        db.BingoSubmissionEntries.RemoveRange(sub.Entries);
+        sub.Entries = req.Entries.Select(e => new BingoSubmissionEntry { RequirementLabel = e.Label, Amount = e.Amount }).ToList();
+    }
+
+    await db.SaveChangesAsync();
+    return Results.Ok(new { sub.Id, Status = status.ToString() });
+});
+
 await app.Services.GetRequiredService<DiscordService>().SendStartupMessage();
 
 app.Run();
@@ -296,3 +469,7 @@ record StatusUpdateRequest(string Status);
 record SubmissionRequest(string SubmittedBy, string ImageUrl, string? Caption, string Type, SubmissionEntryRequest[]? Entries);
 record SubmissionEntryRequest(string Label, int Amount);
 record ReviewRequest(string Status, string? ReviewedBy);
+record DiscordSubmitRequest(ulong ThreadId, ulong MessageId, string PlayerName, string ImageUrl, string? Caption, bool IsStart);
+record SetChannelRequest(ulong ChannelId);
+record SetThreadRequest(ulong ThreadId);
+record DiscordReviewRequest(string Status, string? ReviewedBy, SubmissionEntryRequest[]? Entries);

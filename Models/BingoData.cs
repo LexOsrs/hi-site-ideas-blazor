@@ -10,6 +10,7 @@ public class BingoEvent
     public int BoardSize { get; set; } = 5;
     public BingoEventStatus Status { get; set; } = BingoEventStatus.Upcoming;
     public bool Published { get; set; }
+    public int LineBonusPoints { get; set; } = 50;
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -92,6 +93,7 @@ public class BingoTeam
     public int BingoEventId { get; set; }
     public string Name { get; set; } = "";
     public string Color { get; set; } = "#4a9eff";
+    public ulong? DiscordChannelId { get; set; }
     public List<BingoTeamTile> TeamTiles { get; set; } = [];
     public List<BingoTeamMember> Members { get; set; } = [];
 }
@@ -110,6 +112,7 @@ public class BingoTeamTile
     public int BingoTeamId { get; set; }
     public int BingoTileId { get; set; }
     public TileStatus Status { get; set; } = TileStatus.NotStarted;
+    public ulong? DiscordThreadId { get; set; }
     public string? Proof { get; set; }
     public DateTime? CompletedAt { get; set; }
     public BingoTeam Team { get; set; } = null!;
@@ -127,6 +130,7 @@ public class BingoSubmission
     public string SubmittedBy { get; set; } = "";
     public string ImageUrl { get; set; } = "";
     public string? Caption { get; set; }
+    public ulong? DiscordMessageId { get; set; }
     public SubmissionType Type { get; set; } = SubmissionType.Progress;
     public SubmissionStatus Status { get; set; } = SubmissionStatus.Pending;
     public string? ReviewedBy { get; set; }
@@ -271,6 +275,60 @@ public static class BingoConstants
                 EndsAt = new DateTime(2025, 9, 1, 1, 0, 0, DateTimeKind.Utc),
                 Tiles = tiles,
                 Teams = [shooters, newts, planking, whiteLights, omegasus, navigators, papis],
+            },
+            new()
+            {
+                Title = "Test Bingo",
+                Description = "A small 2x2 bingo for testing.",
+                BoardSize = 2,
+                Status = BingoEventStatus.Active,
+                Published = true,
+                StartsAt = DateTime.UtcNow,
+                EndsAt = DateTime.UtcNow.AddDays(14),
+                Tiles =
+                [
+                    new()
+                    {
+                        Position = 0, Title = "Fire Cape", Points = 10, ImageUrl = Wiki("Fire cape"),
+                        Description = "Obtain a Fire Cape.",
+                        RequirementGroups = [All("Requirements", ("Fire Cape", 1))],
+                    },
+                    new()
+                    {
+                        Position = 1, Title = "Barrows Items", Points = 20, ImageUrl = Wiki("Dharok's greataxe"),
+                        Description = "Get 3 items from the same Barrows set.",
+                        RequirementGroups =
+                        [
+                            OneOf("Barrows set", ("Ahrim's", [("Ahrim's items", 3)]),
+                                                 ("Dharok's", [("Dharok's items", 3)]),
+                                                 ("Guthan's", [("Guthan's items", 3)]),
+                                                 ("Karil's", [("Karil's items", 3)]),
+                                                 ("Torag's", [("Torag's items", 3)]),
+                                                 ("Verac's", [("Verac's items", 3)])),
+                        ],
+                    },
+                    new()
+                    {
+                        Position = 2, Title = "100 Slayer Tasks", Points = 15, ImageUrl = Wiki("Slayer helmet (i)"),
+                        Description = "Complete 100 Slayer tasks.",
+                        RequirementGroups = [All("Requirements", ("Slayer tasks", 100))],
+                    },
+                    new()
+                    {
+                        Position = 3, Title = "Zenyte Jewellery", Points = 25, ImageUrl = Wiki("Zenyte shard"),
+                        Description = "Obtain 4 Zenyte shards and 4 Onyx to craft a full set of Zenyte jewellery.",
+                        RequirementGroups = [All("Requirements", ("Zenyte shard", 4), ("Onyx", 4))],
+                    },
+                ],
+                Teams =
+                [
+                    new()
+                    {
+                        Name = "Test Team",
+                        Color = "#3b82f6",
+                        Members = M(("Lex 26", 0)),
+                    },
+                ],
             },
         ];
     }

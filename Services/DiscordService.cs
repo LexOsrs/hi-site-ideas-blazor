@@ -65,6 +65,76 @@ public class DiscordService(IConfiguration config, ILogger<DiscordService> logge
         }
     }
 
+    public ulong? GetGuildId()
+    {
+        var str = config["Discord:GuildId"];
+        return ulong.TryParse(str, out var id) ? id : null;
+    }
+
+    /// <summary>Create a Discord text channel for a bingo team. Returns the channel ID.</summary>
+    public async Task<ulong?> CreateBingoTeamChannel(BingoTeam team)
+    {
+        using var client = CreateClient();
+        var guildId = GetGuildId();
+        if (client == null || !guildId.HasValue) return null;
+
+        try
+        {
+            var channelName = team.Name.ToLower()
+                .Replace("'", "").Replace("'", "")
+                .Replace(" ", "-").Replace("--", "-");
+
+            var channel = await client.CreateGuildChannelAsync(guildId.Value,
+                new GuildChannelProperties(channelName, ChannelType.TextGuildChannel));
+
+            return channel.Id;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to create Discord channel for team {Team}", team.Name);
+            return null;
+        }
+    }
+
+    /// <summary>Create tile threads in a team's Discord channel. Returns the number of threads created.</summary>
+    public async Task<int> CreateBingoThreads(BingoTeam team, IEnumerable<BingoTile> tiles, Dictionary<int, BingoTeamTile> teamTileMap)
+    {
+        using var client = CreateClient();
+        if (client == null || !team.DiscordChannelId.HasValue) return 0;
+
+        var channelId = team.DiscordChannelId.Value;
+        int created = 0;
+
+        foreach (var tile in tiles.OrderBy(t => t.Position))
+        {
+            // Skip if this team tile already has a thread
+            if (teamTileMap.TryGetValue(tile.Id, out var tt) && tt.DiscordThreadId.HasValue)
+                continue;
+
+            try
+            {
+                // Post a message first, then create a thread from it
+                var msg = await client.SendMessageAsync(channelId, new MessageProperties()
+                    .WithContent($"**#{tile.Position + 1} — {tile.Title}** ({tile.Points} pts)\nPost screenshots here for moderator approval."));
+
+                var thread = await client.CreateGuildThreadAsync(channelId, msg.Id,
+                    new GuildThreadFromMessageProperties(tile.Title));
+
+                // Update the team tile with the thread ID
+                if (tt != null)
+                    tt.DiscordThreadId = thread.Id;
+
+                created++;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to create thread for tile {Title} in channel {ChannelId}", tile.Title, channelId);
+            }
+        }
+
+        return created;
+    }
+
     private static string BuildMessage(Giveaway giveaway, bool hasBoss)
     {
         var prizeLines = string.Join("\n", giveaway.Prizes.Select(p =>

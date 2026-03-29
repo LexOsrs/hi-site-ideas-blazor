@@ -1,7 +1,9 @@
 @using hi_site_ideas_blazor.Models
 @using hi_site_ideas_blazor.Data
+@using hi_site_ideas_blazor.Services
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDbContext> DbFactory
+@inject DiscordService Discord
 
 <div class="bingo-event">
     <div class="bingo-event-header">
@@ -61,15 +63,20 @@
                             <div class="pending-card">
                                 <div class="pending-card-header">
                                     <span class="team-dot" style="background: @team.Color"></span>
+                                    <span class="pending-team-name">@team.Name</span>
                                     <span class="pending-tile-name">@tile.Title</span>
                                     <span class="submission-type-badge @(sub.Type == SubmissionType.Start ? "type-start" : "type-progress")">
                                         @if (sub.Type == SubmissionType.Start)
                                         {
                                             @:START
                                         }
-                                        else
+                                        else if (sub.Entries.Any())
                                         {
                                             @string.Join(", ", sub.Entries.Select(e => $"+{e.Amount} {e.RequirementLabel}"))
+                                        }
+                                        else
+                                        {
+                                            @:PROGRESS
                                         }
                                     </span>
                                 </div>
@@ -86,10 +93,152 @@
                                         }
                                         <span class="submission-date">@sub.SubmittedAt.ToString("MMM d, h:mm tt")</span>
                                     </div>
-                                    <div class="pending-card-actions">
-                                        <button class="approve-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Approved)">Approve</button>
-                                        <button class="deny-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Denied)">Deny</button>
+                                </div>
+                                @if (sub.Type == SubmissionType.Progress)
+                                {
+                                    var reqLabels = tile.RequirementGroups
+                                        .SelectMany(g => g.Options).SelectMany(o => o.Requirements)
+                                        .Select(r => r.Label).Distinct().ToList();
+
+                                    <div class="pending-items-section">
+                                        @foreach (var entry in sub.Entries)
+                                        {
+                                            var e = entry;
+                                            <div class="review-entry-row">
+                                                <select class="review-label-select" value="@e.RequirementLabel" @onchange="v => e.RequirementLabel = v.Value?.ToString() ?? e.RequirementLabel">
+                                                    @foreach (var label in reqLabels)
+                                                    {
+                                                        <option value="@label" selected="@(label == e.RequirementLabel)">@label</option>
+                                                    }
+                                                </select>
+                                                <input type="number" class="review-amount-input" value="@e.Amount" @onchange="v => e.Amount = int.TryParse(v.Value?.ToString(), out var val) ? val : e.Amount" min="1" />
+                                                <button class="edit-icon-btn" @onclick="() => sub.Entries.Remove(e)">
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                                </button>
+                                            </div>
+                                        }
+                                        <button class="add-prize-btn" @onclick="() => AddEntryToSubmission(sub, tile)">+ Add item</button>
                                     </div>
+                                }
+                                <div class="pending-card-actions">
+                                    @{
+                                        var hasItems = sub.Type == SubmissionType.Start || sub.Entries.Any(e => !string.IsNullOrWhiteSpace(e.RequirementLabel) && e.Amount > 0);
+                                    }
+                                    <button class="approve-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Approved)" disabled="@(!hasItems)">Approve</button>
+                                    <button class="deny-btn" @onclick="() => ReviewSubmission(sub, SubmissionStatus.Denied)">Deny</button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (IsAdmin && Event.Teams.Count > 0)
+                {
+                    <div class="discord-setup">
+                        <button class="expandable-header" @onclick="() => _showDiscordSetup = !_showDiscordSetup">
+                            <svg class="expand-chevron @(_showDiscordSetup ? "open" : "")" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="m6 9 6 6 6-6"/>
+                            </svg>
+                            Discord Setup
+                            @{
+                                var teamsWithChannels = Event.Teams.Count(t => t.DiscordChannelId.HasValue);
+                                var teamsWithThreads = Event.Teams.Count(t => t.TeamTiles.Any(tt => tt.DiscordThreadId.HasValue));
+                            }
+                            <span class="discord-setup-status">
+                                @teamsWithChannels/@Event.Teams.Count channels
+                                · @teamsWithThreads/@Event.Teams.Count threads
+                            </span>
+                        </button>
+
+                        @if (_showDiscordSetup)
+                        {
+                            <div class="discord-setup-body">
+                                @if (!string.IsNullOrEmpty(_discordStatus))
+                                {
+                                    <p class="discord-status-msg">@_discordStatus</p>
+                                }
+
+                                <table class="discord-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Team</th>
+                                            <th>Channel</th>
+                                            <th>Threads</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var team in Event.Teams)
+                                        {
+                                            var threadCount = team.TeamTiles.Count(tt => tt.DiscordThreadId.HasValue);
+                                            var totalTiles = Event.Tiles.Count;
+                                            <tr>
+                                                <td>
+                                                    <span class="team-dot" style="background: @team.Color"></span>
+                                                    @team.Name
+                                                </td>
+                                                <td>
+                                                    @if (team.DiscordChannelId.HasValue)
+                                                    {
+                                                        <a href="discord://discord.com/channels/@GuildId/@team.DiscordChannelId" class="discord-link">
+                                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+                                                            #@team.Name.ToLower().Replace("'", "").Replace(" ", "-")
+                                                        </a>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="discord-missing">Not set</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @if (threadCount == totalTiles)
+                                                    {
+                                                        <span class="discord-ok">@threadCount / @totalTiles</span>
+                                                    }
+                                                    else if (threadCount > 0)
+                                                    {
+                                                        <span class="discord-partial">@threadCount / @totalTiles</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="discord-missing">0 / @totalTiles</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    @if (team.DiscordChannelId.HasValue && threadCount < totalTiles)
+                                                    {
+                                                        <button class="save-btn" style="padding: 4px 10px; font-size: 0.78rem" @onclick="() => CreateThreadsForTeam(team)" disabled="@_discordBusy">
+                                                            Create Threads
+                                                        </button>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+
+                                @{ var teamsNeedingChannels = Event.Teams.Where(t => !t.DiscordChannelId.HasValue).ToList(); }
+                                @if (teamsNeedingChannels.Any())
+                                {
+                                    <p class="discord-hint">
+                                        Use the Discord bot command <code>/bingo-channel [team_id] #channel</code> to link channels, or create them here:
+                                    </p>
+                                }
+
+                                <div class="discord-actions">
+                                    @if (teamsNeedingChannels.Any())
+                                    {
+                                        <button class="save-btn" @onclick="CreateAllChannels" disabled="@_discordBusy">
+                                            Create Missing Channels
+                                        </button>
+                                    }
+                                    @{ var teamsReady = Event.Teams.Where(t => t.DiscordChannelId.HasValue && t.TeamTiles.Count(tt => tt.DiscordThreadId.HasValue) < Event.Tiles.Count).ToList(); }
+                                    @if (teamsReady.Any())
+                                    {
+                                        <button class="save-btn" @onclick="CreateAllThreads" disabled="@_discordBusy">
+                                            Create All Missing Threads
+                                        </button>
+                                    }
                                 </div>
                             </div>
                         }
@@ -119,13 +268,14 @@
                 {
                     <div class="scoreboard">
                         <h3>Scoreboard</h3>
-                        @foreach (var team in Event.Teams.OrderByDescending(t => GetTeamPoints(t)))
+                        @foreach (var team in Event.Teams.OrderByDescending(t => GetTotalPoints(t)))
                         {
+                            var lines = GetCompletedLines(team);
                             <div class="score-row">
                                 <span class="team-dot" style="background: @team.Color"></span>
                                 <span class="score-name">@team.Name</span>
-                                <span class="score-tiles">@GetTeamCompletedCount(team) tiles</span>
-                                <span class="score-points">@GetTeamPoints(team) pts</span>
+                                <span class="score-tiles">@GetTeamCompletedCount(team) tiles @(lines > 0 ? $"· {lines} lines" : "")</span>
+                                <span class="score-points">@GetTotalPoints(team) pts</span>
                             </div>
                         }
                     </div>
@@ -135,10 +285,22 @@
                 {
                     <div class="scoreboard">
                         <h3>Your Team — @MyTeam.Name</h3>
+                        @{
+                            var myLines = GetCompletedLines(MyTeam);
+                            var myLineBonus = myLines * 50;
+                            var myTilePoints = GetTeamTilePoints(MyTeam);
+                        }
                         <div class="team-summary-row">
                             <span class="score-tiles">@GetTeamCompletedCount(MyTeam) tiles completed</span>
-                            <span class="score-points">@GetTeamPoints(MyTeam) pts</span>
+                            <span class="score-points">@(myTilePoints + myLineBonus) pts</span>
                         </div>
+                        @if (myLineBonus > 0)
+                        {
+                            <div class="line-bonus-row">
+                                <span>@myLines line@(myLines != 1 ? "s" : "") completed</span>
+                                <span class="score-points">+@myLineBonus pts</span>
+                            </div>
+                        }
                         <div class="team-roster">
                             @foreach (var member in MyTeam.Members.OrderByDescending(m => m.ContributionScore))
                             {
@@ -175,6 +337,11 @@
     private bool _editing;
     private int? _selectedTeamId;
     private string? _lightboxUrl;
+    private bool _showDiscordSetup;
+    private bool _discordBusy;
+    private string? _discordStatus;
+
+    private string GuildId => Discord.GetGuildId()?.ToString() ?? "0";
 
     private BingoTeam? MyTeam => UserTeamId.HasValue
         ? Event.Teams.FirstOrDefault(t => t.Id == UserTeamId.Value)
@@ -205,30 +372,90 @@
             )
         ).OrderBy(x => x.s.SubmittedAt);
 
+    private void AddEntryToSubmission(BingoSubmission sub, BingoTile tile)
+    {
+        var labels = tile.RequirementGroups
+            .SelectMany(g => g.Options).SelectMany(o => o.Requirements)
+            .Select(r => r.Label).Distinct().ToList();
+        sub.Entries.Add(new BingoSubmissionEntry { RequirementLabel = labels.FirstOrDefault() ?? "", Amount = 1 });
+    }
+
     private async Task ReviewSubmission(BingoSubmission sub, SubmissionStatus newStatus)
     {
+        // Block approving progress submissions without items
+        if (newStatus == SubmissionStatus.Approved && sub.Type == SubmissionType.Progress
+            && !sub.Entries.Any(e => !string.IsNullOrWhiteSpace(e.RequirementLabel) && e.Amount > 0))
+            return;
+
         await using var db = await DbFactory.CreateDbContextAsync();
-        var entity = await db.BingoSubmissions.FindAsync(sub.Id);
+        var entity = await db.BingoSubmissions.Include(s => s.Entries).FirstOrDefaultAsync(s => s.Id == sub.Id);
         if (entity == null) return;
 
         entity.Status = newStatus;
         entity.ReviewedBy = "Admin";
         entity.ReviewedAt = DateTime.UtcNow;
+
+        // Sync entries
+        db.BingoSubmissionEntries.RemoveRange(entity.Entries);
+        entity.Entries = sub.Entries
+            .Where(e => !string.IsNullOrWhiteSpace(e.RequirementLabel) && e.Amount > 0)
+            .Select(e => new BingoSubmissionEntry { RequirementLabel = e.RequirementLabel, Amount = e.Amount })
+            .ToList();
+
         await db.SaveChangesAsync();
 
         sub.Status = newStatus;
         sub.ReviewedBy = "Admin";
         sub.ReviewedAt = DateTime.UtcNow;
+        sub.Entries = entity.Entries;
         StateHasChanged();
     }
 
-    private int GetTeamCompletedCount(BingoTeam team) =>
-        team.TeamTiles.Count(tt => tt.Status == TileStatus.Completed);
+    private int GetTotalPoints(BingoTeam team) =>
+        GetTeamTilePoints(team) + GetCompletedLines(team) * Event.LineBonusPoints;
 
-    private int GetTeamPoints(BingoTeam team) =>
+    private int GetTeamTilePoints(BingoTeam team) =>
         team.TeamTiles
-            .Where(tt => tt.Status == TileStatus.Completed)
-            .Sum(tt => Event.Tiles.FirstOrDefault(t => t.Id == tt.BingoTileId)?.Points ?? 1);
+            .Where(tt =>
+            {
+                var tile = Event.Tiles.FirstOrDefault(t => t.Id == tt.BingoTileId);
+                return tile != null && tile.HasRequirements && tile.IsComplete(tt.GetApprovedSubmissions());
+            })
+            .Sum(tt => Event.Tiles.FirstOrDefault(t => t.Id == tt.BingoTileId)?.Points ?? 0);
+
+    private int GetCompletedLines(BingoTeam team)
+    {
+        var size = Event.BoardSize;
+        var completedPositions = new HashSet<int>();
+        foreach (var tt in team.TeamTiles)
+        {
+            var tile = Event.Tiles.FirstOrDefault(t => t.Id == tt.BingoTileId);
+            if (tile != null && tile.HasRequirements && tile.IsComplete(tt.GetApprovedSubmissions()))
+                completedPositions.Add(tile.Position);
+        }
+
+        int lines = 0;
+        // Rows
+        for (int r = 0; r < size; r++)
+            if (Enumerable.Range(0, size).All(c => completedPositions.Contains(r * size + c))) lines++;
+        // Columns
+        for (int c = 0; c < size; c++)
+            if (Enumerable.Range(0, size).All(r => completedPositions.Contains(r * size + c))) lines++;
+        // Diagonal top-left to bottom-right
+        if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + i))) lines++;
+        // Diagonal top-right to bottom-left
+        if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + (size - 1 - i)))) lines++;
+
+        return lines;
+    }
+
+    private int GetTeamCompletedCount(BingoTeam team) =>
+        team.TeamTiles.Count(tt =>
+        {
+            var tile = Event.Tiles.FirstOrDefault(t => t.Id == tt.BingoTileId);
+            return tile != null && tile.HasRequirements && tile.IsComplete(tt.GetApprovedSubmissions());
+        });
+
 
     private async Task HandleSave(BingoEvent draft)
     {
@@ -236,46 +463,122 @@
         _editing = false;
     }
 
-    private async Task HandleTileStatusChanged((int TileId, int TeamId, TileStatus Status) change)
+    private async Task CreateThreadsForTeam(BingoTeam team)
     {
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        var existing = await db.BingoTeamTiles
-            .FirstOrDefaultAsync(tt => tt.BingoTileId == change.TileId && tt.BingoTeamId == change.TeamId);
-
-        if (existing != null)
-        {
-            existing.Status = change.Status;
-            existing.CompletedAt = change.Status == TileStatus.Completed ? DateTime.UtcNow : null;
-        }
-        else
-        {
-            var newTt = new BingoTeamTile
-            {
-                BingoTeamId = change.TeamId,
-                BingoTileId = change.TileId,
-                Status = change.Status,
-                CompletedAt = change.Status == TileStatus.Completed ? DateTime.UtcNow : null,
-            };
-            db.BingoTeamTiles.Add(newTt);
-
-            // Update in-memory
-            var team = Event.Teams.FirstOrDefault(t => t.Id == change.TeamId);
-            team?.TeamTiles.Add(newTt);
-        }
-
-        if (existing != null)
-        {
-            var inMemory = Event.Teams.SelectMany(t => t.TeamTiles)
-                .FirstOrDefault(tt => tt.BingoTileId == change.TileId && tt.BingoTeamId == change.TeamId);
-            if (inMemory != null)
-            {
-                inMemory.Status = change.Status;
-                inMemory.CompletedAt = change.Status == TileStatus.Completed ? DateTime.UtcNow : null;
-            }
-        }
-
-        await db.SaveChangesAsync();
+        _discordBusy = true;
+        _discordStatus = $"Creating threads for {team.Name}...";
         StateHasChanged();
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+
+            // Ensure all team tiles exist
+            foreach (var tile in Event.Tiles)
+            {
+                if (!team.TeamTiles.Any(tt => tt.BingoTileId == tile.Id))
+                {
+                    var newTt = new BingoTeamTile { BingoTeamId = team.Id, BingoTileId = tile.Id, Status = TileStatus.InProgress };
+                    db.BingoTeamTiles.Add(newTt);
+                    team.TeamTiles.Add(newTt);
+                }
+            }
+            await db.SaveChangesAsync();
+
+            var teamTileMap = team.TeamTiles.ToDictionary(tt => tt.BingoTileId);
+            var count = await Discord.CreateBingoThreads(team, Event.Tiles, teamTileMap);
+            await db.SaveChangesAsync(); // Save thread IDs
+
+            _discordStatus = $"Created {count} threads for {team.Name}.";
+        }
+        catch (Exception ex)
+        {
+            _discordStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _discordBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateAllChannels()
+    {
+        _discordBusy = true;
+        _discordStatus = "Creating Discord channels...";
+        StateHasChanged();
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            int created = 0;
+
+            foreach (var team in Event.Teams.Where(t => !t.DiscordChannelId.HasValue))
+            {
+                var channelId = await Discord.CreateBingoTeamChannel(team);
+                if (channelId.HasValue)
+                {
+                    var dbTeam = await db.BingoTeams.FindAsync(team.Id);
+                    if (dbTeam != null) dbTeam.DiscordChannelId = channelId.Value;
+                    team.DiscordChannelId = channelId.Value;
+                    created++;
+                }
+            }
+
+            await db.SaveChangesAsync();
+            _discordStatus = $"Created {created} Discord channels.";
+        }
+        catch (Exception ex)
+        {
+            _discordStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _discordBusy = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CreateAllThreads()
+    {
+        _discordBusy = true;
+        _discordStatus = "Creating threads for all teams...";
+        StateHasChanged();
+
+        try
+        {
+            int total = 0;
+            foreach (var team in Event.Teams.Where(t => t.DiscordChannelId.HasValue))
+            {
+                await using var db = await DbFactory.CreateDbContextAsync();
+
+                foreach (var tile in Event.Tiles)
+                {
+                    if (!team.TeamTiles.Any(tt => tt.BingoTileId == tile.Id))
+                    {
+                        var newTt = new BingoTeamTile { BingoTeamId = team.Id, BingoTileId = tile.Id, Status = TileStatus.InProgress };
+                        db.BingoTeamTiles.Add(newTt);
+                        team.TeamTiles.Add(newTt);
+                    }
+                }
+                await db.SaveChangesAsync();
+
+                var teamTileMap = team.TeamTiles.ToDictionary(tt => tt.BingoTileId);
+                var count = await Discord.CreateBingoThreads(team, Event.Tiles, teamTileMap);
+                await db.SaveChangesAsync();
+                total += count;
+            }
+
+            _discordStatus = $"Created {total} threads across all teams.";
+        }
+        catch (Exception ex)
+        {
+            _discordStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _discordBusy = false;
+            StateHasChanged();
+        }
     }
 }
