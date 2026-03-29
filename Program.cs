@@ -23,6 +23,7 @@ else
 }
 
 builder.Services.AddSingleton<DiscordService>();
+builder.Services.AddSingleton<BoardImageService>();
 builder.Services.AddHostedService<GuessSyncService>();
 
 var app = builder.Build();
@@ -464,6 +465,88 @@ bingo.MapPut("/discord/submission/{submissionId:int}/review", async (int submiss
         await CheckCompletionNotifications(db, sub, app.Services.GetRequiredService<DiscordService>());
 
     return Results.Ok(new { sub.Id, Status = status.ToString() });
+});
+
+bingo.MapGet("/board-image/{eventId:int}/{teamId:int}", async (int eventId, int teamId, IDbContextFactory<AppDbContext> dbFactory, BoardImageService imageService) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var ev = await db.BingoEvents
+        .Include(e => e.Tiles).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+        .Include(e => e.Tiles).ThenInclude(t => t.TeamTiles.Where(tt => tt.BingoTeamId == teamId)).ThenInclude(tt => tt.Submissions).ThenInclude(s => s.Entries)
+        .Include(e => e.Teams)
+        .FirstOrDefaultAsync(e => e.Id == eventId);
+    if (ev == null) return Results.NotFound();
+
+    var team = ev.Teams.FirstOrDefault(t => t.Id == teamId);
+    if (team == null) return Results.NotFound();
+
+    var png = await imageService.RenderBoard(ev, team);
+    return Results.File(png, "image/png", $"bingo-{ev.Id}-{team.Name.ToLower().Replace(" ", "-")}.png");
+});
+
+bingo.MapGet("/discord/team-by-channel/{channelId}", async (ulong channelId, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var team = await db.BingoTeams
+        .FirstOrDefaultAsync(t => t.DiscordChannelId == channelId);
+    if (team == null) return Results.NotFound();
+    return Results.Ok(new { team.Id, team.Name, team.BingoEventId, EventId = team.BingoEventId });
+});
+
+bingo.MapGet("/discord/board/{eventId:int}/{teamId:int}", async (int eventId, int teamId, IDbContextFactory<AppDbContext> dbFactory) =>
+{
+    await using var db = await dbFactory.CreateDbContextAsync();
+    var ev = await db.BingoEvents
+        .Include(e => e.Tiles).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+        .Include(e => e.Tiles).ThenInclude(t => t.TeamTiles.Where(tt => tt.BingoTeamId == teamId)).ThenInclude(tt => tt.Submissions).ThenInclude(s => s.Entries)
+        .Include(e => e.Teams)
+        .FirstOrDefaultAsync(e => e.Id == eventId);
+    if (ev == null) return Results.NotFound();
+
+    var team = ev.Teams.FirstOrDefault(t => t.Id == teamId);
+    if (team == null) return Results.NotFound();
+
+    var size = ev.BoardSize;
+    var completedPositions = new HashSet<int>();
+
+    var tileData = ev.Tiles.OrderBy(t => t.Position).Select(t =>
+    {
+        var tt = t.TeamTiles.FirstOrDefault();
+        var approved = tt?.GetApprovedSubmissions() ?? Enumerable.Empty<BingoSubmission>();
+        var isComplete = t.HasRequirements && t.IsComplete(approved);
+        var hasProgress = approved.Any(s => s.Entries.Any(e => e.Amount > 0));
+        if (isComplete) completedPositions.Add(t.Position);
+
+        return new
+        {
+            t.Position, t.Title, t.Points,
+            Status = isComplete ? "Complete" : hasProgress ? "In Progress" : "Not Started",
+        };
+    }).ToList();
+
+    // Count lines
+    int lines = 0;
+    for (int r = 0; r < size; r++)
+        if (Enumerable.Range(0, size).All(c => completedPositions.Contains(r * size + c))) lines++;
+    for (int c = 0; c < size; c++)
+        if (Enumerable.Range(0, size).All(r => completedPositions.Contains(r * size + c))) lines++;
+    if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + i))) lines++;
+    if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + (size - 1 - i)))) lines++;
+
+    var tilePoints = tileData.Where(t => t.Status == "Complete").Sum(t => t.Points);
+    var lineBonus = lines * ev.LineBonusPoints;
+
+    return Results.Ok(new
+    {
+        ev.Title, ev.BoardSize, TeamName = team.Name, TeamColor = team.Color,
+        Tiles = tileData,
+        CompletedTiles = completedPositions.Count,
+        TotalTiles = ev.Tiles.Count,
+        Lines = lines,
+        TilePoints = tilePoints,
+        LineBonus = lineBonus,
+        TotalPoints = tilePoints + lineBonus,
+    });
 });
 
 // Helper: check for tile/line completions after approval and send Discord notifications
