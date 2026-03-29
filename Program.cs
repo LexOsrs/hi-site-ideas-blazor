@@ -282,6 +282,10 @@ bingo.MapPut("/submissions/{submissionId:int}/review", async (int submissionId, 
     sub.ReviewedBy = req.ReviewedBy ?? "Admin";
     sub.ReviewedAt = DateTime.UtcNow;
     await db.SaveChangesAsync();
+
+    if (status == SubmissionStatus.Approved)
+        await CheckCompletionNotifications(db, sub, app.Services.GetRequiredService<DiscordService>());
+
     return Results.Ok(new { sub.Id, Status = status.ToString() });
 });
 
@@ -455,8 +459,92 @@ bingo.MapPut("/discord/submission/{submissionId:int}/review", async (int submiss
     }
 
     await db.SaveChangesAsync();
+
+    if (status == SubmissionStatus.Approved)
+        await CheckCompletionNotifications(db, sub, app.Services.GetRequiredService<DiscordService>());
+
     return Results.Ok(new { sub.Id, Status = status.ToString() });
 });
+
+// Helper: check for tile/line completions after approval and send Discord notifications
+async Task CheckCompletionNotifications(AppDbContext db, BingoSubmission sub, DiscordService discord)
+{
+    if (sub.Status != SubmissionStatus.Approved) return;
+
+    var teamTile = await db.BingoTeamTiles
+        .Include(tt => tt.Tile).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+        .Include(tt => tt.Submissions).ThenInclude(s => s.Entries)
+        .Include(tt => tt.Team)
+        .FirstOrDefaultAsync(tt => tt.Id == sub.BingoTeamTileId);
+    if (teamTile == null) return;
+
+    var tile = teamTile.Tile;
+    var team = teamTile.Team;
+    var approved = teamTile.GetApprovedSubmissions();
+
+    if (!tile.HasRequirements || !tile.IsComplete(approved)) return;
+
+    // Check if this approval JUST completed the tile (was it incomplete before this submission?)
+    var approvedWithout = approved.Where(s => s.Id != sub.Id);
+    if (tile.IsComplete(approvedWithout)) return; // Was already complete
+
+    // Tile just completed!
+    await discord.NotifyTileComplete(teamTile, tile);
+    await discord.NotifyTeamChannel(team, $"🎉 **{tile.Title}** tile completed! (+{tile.Points} pts)");
+
+    // Check for new line completions
+    var ev = await db.BingoEvents
+        .Include(e => e.Tiles).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+        .Include(e => e.Tiles).ThenInclude(t => t.TeamTiles).ThenInclude(tt => tt.Submissions).ThenInclude(s => s.Entries)
+        .FirstOrDefaultAsync(e => e.Id == tile.BingoEventId);
+    if (ev == null || ev.LineBonusPoints <= 0) return;
+
+    var size = ev.BoardSize;
+    var completedPositions = new HashSet<int>();
+    foreach (var tt in ev.Tiles.SelectMany(t => t.TeamTiles).Where(tt => tt.BingoTeamId == team.Id))
+    {
+        var t = ev.Tiles.First(x => x.Id == tt.BingoTileId);
+        if (t.HasRequirements && t.IsComplete(tt.GetApprovedSubmissions()))
+            completedPositions.Add(t.Position);
+    }
+
+    // Also check what was complete BEFORE this tile (exclude current tile position)
+    var prevPositions = new HashSet<int>(completedPositions);
+    prevPositions.Remove(tile.Position);
+
+    // Check each line — only notify for lines that are NEW (weren't complete before)
+    var newLines = new List<string>();
+
+    for (int r = 0; r < size; r++)
+        if (Enumerable.Range(0, size).All(c => completedPositions.Contains(r * size + c))
+            && !Enumerable.Range(0, size).All(c => prevPositions.Contains(r * size + c)))
+            newLines.Add($"Row {r + 1}");
+
+    for (int c = 0; c < size; c++)
+        if (Enumerable.Range(0, size).All(r => completedPositions.Contains(r * size + c))
+            && !Enumerable.Range(0, size).All(r => prevPositions.Contains(r * size + c)))
+            newLines.Add($"Column {c + 1}");
+
+    if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + i))
+        && !Enumerable.Range(0, size).All(i => prevPositions.Contains(i * size + i)))
+        newLines.Add("Diagonal (↘)");
+
+    if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + (size - 1 - i)))
+        && !Enumerable.Range(0, size).All(i => prevPositions.Contains(i * size + (size - 1 - i))))
+        newLines.Add("Diagonal (↙)");
+
+    foreach (var line in newLines)
+    {
+        await discord.NotifyTeamChannel(team, $"🏆 **{line} complete!** (+{ev.LineBonusPoints} bonus pts)");
+    }
+
+    // Check for full board completion
+    var totalTiles = ev.Tiles.Count(t => t.HasRequirements);
+    if (totalTiles > 0 && completedPositions.Count == totalTiles && prevPositions.Count < totalTiles)
+    {
+        await discord.NotifyTeamChannel(team, $"👑 **FULL BOARD COMPLETE!** Every tile complete! Now go touch some grass 👑");
+    }
+}
 
 await app.Services.GetRequiredService<DiscordService>().SendStartupMessage();
 

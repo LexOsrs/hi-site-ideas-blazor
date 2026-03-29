@@ -135,6 +135,56 @@ public class DiscordService(IConfiguration config, ILogger<DiscordService> logge
         return created;
     }
 
+    /// <summary>Add a reaction to a Discord message (e.g. ✅ when approved from site).</summary>
+    public async Task AddReaction(ulong channelId, ulong messageId, string emoji)
+    {
+        using var client = CreateClient();
+        if (client == null) return;
+
+        try
+        {
+            await client.AddMessageReactionAsync(channelId, messageId, new ReactionEmojiProperties(emoji));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to add reaction to message {MessageId}", messageId);
+        }
+    }
+
+    /// <summary>Post a tile completion message in the tile's thread.</summary>
+    public async Task NotifyTileComplete(BingoTeamTile teamTile, BingoTile tile)
+    {
+        using var client = CreateClient();
+        if (client == null || !teamTile.DiscordThreadId.HasValue) return;
+
+        try
+        {
+            await client.SendMessageAsync(teamTile.DiscordThreadId.Value, new MessageProperties()
+                .WithContent($"🎉 **{tile.Title}** is complete! (+{tile.Points} pts)"));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to send tile complete notification");
+        }
+    }
+
+    /// <summary>Post a tile completion announcement in the team's channel.</summary>
+    public async Task NotifyTeamChannel(BingoTeam team, string message)
+    {
+        using var client = CreateClient();
+        if (client == null || !team.DiscordChannelId.HasValue) return;
+
+        try
+        {
+            await client.SendMessageAsync(team.DiscordChannelId.Value, new MessageProperties()
+                .WithContent(message));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to send team channel notification");
+        }
+    }
+
     private static string BuildMessage(Giveaway giveaway, bool hasBoss)
     {
         var prizeLines = string.Join("\n", giveaway.Prizes.Select(p =>

@@ -335,10 +335,14 @@
   display: grid;
   gap: 3px;
   margin-bottom: 20px;
-  max-width: 600px;
   margin-left: auto;
   margin-right: auto;
 }
+
+::deep .bingo-board[style*="repeat(2"] { max-width: 280px; }
+::deep .bingo-board[style*="repeat(3"] { max-width: 400px; }
+::deep .bingo-board[style*="repeat(4"] { max-width: 520px; }
+::deep .bingo-board[style*="repeat(5"] { max-width: 600px; }
 
 ::deep .board-tile {
   position: relative;
@@ -1070,6 +1074,7 @@
   vertical-align: middle;
 }
 
+::deep .discord-actions-cell { display: flex; gap: 4px; }
 ::deep .discord-ok { color: var(--green); font-weight: 600; }
 ::deep .discord-partial { color: var(--gold); font-weight: 600; }
 ::deep .discord-missing { color: var(--text-dim); }

@@ -1,7 +1,9 @@
 @using hi_site_ideas_blazor.Models
 @using hi_site_ideas_blazor.Data
+@using hi_site_ideas_blazor.Services
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDbContext> DbFactory
+@inject DiscordService Discord
 
 <div class="modal-overlay" @onclick="() => OnClose.InvokeAsync()">
     <div class="modal-content modal-wide" @onclick:stopPropagation="true">
@@ -145,58 +147,6 @@
         else
         {
             <div class="submissions-tab">
-                @if (SelectedTeamId.HasValue)
-                {
-                    <div class="submission-upload">
-                        <h4>Submit Screenshot</h4>
-                        <div class="upload-row">
-                            <select @bind="_submissionType">
-                                <option value="@SubmissionType.Start">Starting screenshot</option>
-                                <option value="@SubmissionType.Progress">Progress / Item obtained</option>
-                            </select>
-                        </div>
-                        @if (_submissionType == SubmissionType.Progress && AllRequirementLabels.Any())
-                        {
-                            <div class="entry-list">
-                                @for (int i = 0; i < _entries.Count; i++)
-                                {
-                                    var idx = i;
-                                    <div class="entry-row">
-                                        <select value="@_entries[idx].Label" @onchange="e => _entries[idx].Label = e.Value?.ToString() ?? _entries[idx].Label">
-                                            @foreach (var label in AllRequirementLabels)
-                                            {
-                                                <option value="@label" selected="@(label == _entries[idx].Label)">@label</option>
-                                            }
-                                        </select>
-                                        <input type="number" value="@_entries[idx].Amount" @onchange="e => _entries[idx].Amount = int.TryParse(e.Value?.ToString(), out var v) ? v : _entries[idx].Amount" min="1" style="width: 70px" />
-                                        @if (_entries.Count > 1)
-                                        {
-                                            <button class="edit-icon-btn" @onclick="() => _entries.RemoveAt(idx)">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
-                                                </svg>
-                                            </button>
-                                        }
-                                    </div>
-                                }
-                            </div>
-                            <button class="add-entry-btn" @onclick="AddEntry">+ Add another item from this screenshot</button>
-                        }
-                        <div class="upload-row">
-                            <input @bind="_imageUrl" placeholder="Screenshot URL (Cloudinary, Imgur, etc.)" />
-                        </div>
-                        <div class="upload-row">
-                            <input @bind="_caption" placeholder="What did you get?" />
-                        </div>
-                        <button class="save-btn" @onclick="SubmitScreenshot" disabled="@(string.IsNullOrWhiteSpace(_imageUrl))">
-                            Submit for Review
-                        </button>
-                    </div>
-                }
-                else
-                {
-                    <p class="empty-screenshots">No team selected.</p>
-                }
 
                 @{ var pending = GetSubmissions(SubmissionStatus.Pending); }
                 @if (pending.Any())
@@ -308,6 +258,10 @@
                                     @if (_editingSubmissionId == sub.Id)
                                     {
                                         <div class="review-actions">
+                                            <div class="review-entry-row">
+                                                <label style="font-size: 0.78rem; color: var(--text-dim); min-width: 70px">Credited to</label>
+                                                <input value="@sub.SubmittedBy" @onchange="v => sub.SubmittedBy = v.Value?.ToString() ?? sub.SubmittedBy" style="flex: 1" />
+                                            </div>
                                             @if (sub.Type == SubmissionType.Progress)
                                             {
                                                 @foreach (var entry in sub.Entries)
@@ -405,12 +359,6 @@
     private string _tab = "details";
     private string? _lightboxUrl;
     private int? _editingSubmissionId;
-    private SubmissionType _submissionType = SubmissionType.Progress;
-    private List<EntryDraft> _entries = [];
-    private string _imageUrl = "";
-    private string _caption = "";
-
-    private class EntryDraft { public string Label { get; set; } = ""; public int Amount { get; set; } = 1; }
 
     private IEnumerable<BingoTeam> TeamsToShow => IsAdmin
         ? Event.Teams
@@ -423,26 +371,7 @@
         .Distinct()
         .ToList();
 
-    protected override void OnInitialized()
-    {
-        var labels = AllRequirementLabels;
-        _entries = [new EntryDraft { Label = labels.FirstOrDefault() ?? "", Amount = 1 }];
-    }
 
-    private void AddEntry()
-    {
-        var labels = AllRequirementLabels;
-        _entries.Add(new EntryDraft { Label = labels.FirstOrDefault() ?? "", Amount = 1 });
-    }
-
-    private BingoTeamTile? MyTeamTile
-    {
-        get
-        {
-            if (!SelectedTeamId.HasValue) return null;
-            return Tile.TeamTiles.FirstOrDefault(x => x.BingoTeamId == SelectedTeamId.Value);
-        }
-    }
 
     private int SubmissionCount
     {
@@ -497,6 +426,7 @@
         var entity = await db.BingoSubmissions.Include(s => s.Entries).FirstOrDefaultAsync(s => s.Id == sub.Id);
         if (entity == null) return;
 
+        entity.SubmittedBy = sub.SubmittedBy;
         db.BingoSubmissionEntries.RemoveRange(entity.Entries);
         entity.Entries = sub.Entries
             .Where(e => !string.IsNullOrWhiteSpace(e.RequirementLabel) && e.Amount > 0)
@@ -513,55 +443,6 @@
     {
         var labels = AllRequirementLabels;
         sub.Entries.Add(new BingoSubmissionEntry { RequirementLabel = labels.FirstOrDefault() ?? "", Amount = 1 });
-    }
-
-    private async Task SubmitScreenshot()
-    {
-        if (string.IsNullOrWhiteSpace(_imageUrl) || !SelectedTeamId.HasValue) return;
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        // Auto-create TeamTile if it doesn't exist
-        var teamTile = MyTeamTile;
-        if (teamTile == null)
-        {
-            teamTile = new BingoTeamTile
-            {
-                BingoTeamId = SelectedTeamId.Value,
-                BingoTileId = Tile.Id,
-                Status = TileStatus.InProgress,
-            };
-            db.BingoTeamTiles.Add(teamTile);
-            await db.SaveChangesAsync();
-
-            // Add to in-memory
-            var team = Event.Teams.FirstOrDefault(t => t.Id == SelectedTeamId.Value);
-            team?.TeamTiles.Add(teamTile);
-            Tile.TeamTiles.Add(teamTile);
-        }
-
-        var submission = new BingoSubmission
-        {
-            BingoTeamTileId = teamTile.Id,
-            SubmittedBy = IsAdmin ? "Admin" : "Lex 26",
-            ImageUrl = _imageUrl.Trim(),
-            Caption = string.IsNullOrWhiteSpace(_caption) ? null : _caption.Trim(),
-            Type = _submissionType,
-            Status = SubmissionStatus.Pending,
-            Entries = _submissionType == SubmissionType.Start
-                ? []
-                : _entries.Where(e => !string.IsNullOrEmpty(e.Label) && e.Amount > 0)
-                    .Select(e => new BingoSubmissionEntry { RequirementLabel = e.Label, Amount = e.Amount })
-                    .ToList(),
-        };
-        db.BingoSubmissions.Add(submission);
-        await db.SaveChangesAsync();
-
-        teamTile.Submissions.Add(submission);
-        _imageUrl = "";
-        _caption = "";
-        var labels = AllRequirementLabels;
-        _entries = [new EntryDraft { Label = labels.FirstOrDefault() ?? "", Amount = 1 }];
     }
 
     private async Task ReviewSubmission(BingoSubmission sub, SubmissionStatus newStatus)
@@ -591,5 +472,86 @@
         sub.Status = newStatus;
         sub.ReviewedBy = "Admin";
         sub.ReviewedAt = DateTime.UtcNow;
+
+        if (newStatus == SubmissionStatus.Approved)
+        {
+            // Add ✅ to the original Discord message
+            if (entity.DiscordMessageId.HasValue)
+            {
+                var teamTileForReaction = await db.BingoTeamTiles.FirstOrDefaultAsync(tt => tt.Id == entity.BingoTeamTileId);
+                if (teamTileForReaction?.DiscordThreadId != null)
+                    await Discord.AddReaction(teamTileForReaction.DiscordThreadId.Value, entity.DiscordMessageId.Value, "✅");
+            }
+            await CheckCompletionNotifications(db, entity);
+        }
+        else if (newStatus == SubmissionStatus.Denied && entity.DiscordMessageId.HasValue)
+        {
+            var teamTileForReaction = await db.BingoTeamTiles.FirstOrDefaultAsync(tt => tt.Id == entity.BingoTeamTileId);
+            if (teamTileForReaction?.DiscordThreadId != null)
+                await Discord.AddReaction(teamTileForReaction.DiscordThreadId.Value, entity.DiscordMessageId.Value, "❌");
+        }
+    }
+
+    private async Task CheckCompletionNotifications(AppDbContext db, BingoSubmission sub)
+    {
+        var teamTile = await db.BingoTeamTiles
+            .Include(tt => tt.Tile).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+            .Include(tt => tt.Submissions).ThenInclude(s => s.Entries)
+            .Include(tt => tt.Team)
+            .FirstOrDefaultAsync(tt => tt.Id == sub.BingoTeamTileId);
+        if (teamTile == null) return;
+
+        var tile = teamTile.Tile;
+        var team = teamTile.Team;
+        var approved = teamTile.GetApprovedSubmissions();
+
+        if (!tile.HasRequirements || !tile.IsComplete(approved)) return;
+        var approvedWithout = approved.Where(s => s.Id != sub.Id);
+        if (tile.IsComplete(approvedWithout)) return;
+
+        await Discord.NotifyTileComplete(teamTile, tile);
+        await Discord.NotifyTeamChannel(team, $"🎉 **{tile.Title}** tile completed! (+{tile.Points} pts)");
+
+        // Check lines
+        var ev = await db.BingoEvents
+            .Include(e => e.Tiles).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+            .Include(e => e.Tiles).ThenInclude(t => t.TeamTiles).ThenInclude(tt => tt.Submissions).ThenInclude(s => s.Entries)
+            .FirstOrDefaultAsync(e => e.Id == tile.BingoEventId);
+        if (ev == null || ev.LineBonusPoints <= 0) return;
+
+        var size = ev.BoardSize;
+        var completedPositions = new HashSet<int>();
+        foreach (var tt in ev.Tiles.SelectMany(t => t.TeamTiles).Where(tt => tt.BingoTeamId == team.Id))
+        {
+            var t = ev.Tiles.First(x => x.Id == tt.BingoTileId);
+            if (t.HasRequirements && t.IsComplete(tt.GetApprovedSubmissions()))
+                completedPositions.Add(t.Position);
+        }
+
+        var prevPositions = new HashSet<int>(completedPositions);
+        prevPositions.Remove(tile.Position);
+
+        var newLines = new List<string>();
+        for (int r = 0; r < size; r++)
+            if (Enumerable.Range(0, size).All(c => completedPositions.Contains(r * size + c))
+                && !Enumerable.Range(0, size).All(c => prevPositions.Contains(r * size + c)))
+                newLines.Add($"Row {r + 1}");
+        for (int c = 0; c < size; c++)
+            if (Enumerable.Range(0, size).All(r => completedPositions.Contains(r * size + c))
+                && !Enumerable.Range(0, size).All(r => prevPositions.Contains(r * size + c)))
+                newLines.Add($"Column {c + 1}");
+        if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + i))
+            && !Enumerable.Range(0, size).All(i => prevPositions.Contains(i * size + i)))
+            newLines.Add("Diagonal (↘)");
+        if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + (size - 1 - i)))
+            && !Enumerable.Range(0, size).All(i => prevPositions.Contains(i * size + (size - 1 - i))))
+            newLines.Add("Diagonal (↙)");
+
+        foreach (var line in newLines)
+            await Discord.NotifyTeamChannel(team, $"🏆 **{line} complete!** (+{ev.LineBonusPoints} bonus pts)");
+
+        var totalTiles = ev.Tiles.Count(t => t.HasRequirements);
+        if (totalTiles > 0 && completedPositions.Count == totalTiles && prevPositions.Count < totalTiles)
+            await Discord.NotifyTeamChannel(team, $"👑 **FULL BOARD COMPLETE!** Every tile complete! Now go touch some grass 👑");
     }
 }

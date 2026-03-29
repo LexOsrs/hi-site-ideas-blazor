@@ -101,6 +101,10 @@
                                         .Select(r => r.Label).Distinct().ToList();
 
                                     <div class="pending-items-section">
+                                        <div class="review-entry-row">
+                                            <label style="font-size: 0.78rem; color: var(--text-dim); min-width: 70px">Credited to</label>
+                                            <input value="@sub.SubmittedBy" @onchange="v => sub.SubmittedBy = v.Value?.ToString() ?? sub.SubmittedBy" style="flex: 1" />
+                                        </div>
                                         @foreach (var entry in sub.Entries)
                                         {
                                             var e = entry;
@@ -204,7 +208,13 @@
                                                         <span class="discord-missing">0 / @totalTiles</span>
                                                     }
                                                 </td>
-                                                <td>
+                                                <td class="discord-actions-cell">
+                                                    @if (!team.DiscordChannelId.HasValue)
+                                                    {
+                                                        <button class="save-btn" style="padding: 4px 10px; font-size: 0.78rem" @onclick="() => CreateChannelForTeam(team)" disabled="@_discordBusy">
+                                                            Create Channel
+                                                        </button>
+                                                    }
                                                     @if (team.DiscordChannelId.HasValue && threadCount < totalTiles)
                                                     {
                                                         <button class="save-btn" style="padding: 4px 10px; font-size: 0.78rem" @onclick="() => CreateThreadsForTeam(team)" disabled="@_discordBusy">
@@ -394,6 +404,7 @@
         entity.Status = newStatus;
         entity.ReviewedBy = "Admin";
         entity.ReviewedAt = DateTime.UtcNow;
+        entity.SubmittedBy = sub.SubmittedBy;
 
         // Sync entries
         db.BingoSubmissionEntries.RemoveRange(entity.Entries);
@@ -408,6 +419,89 @@
         sub.ReviewedBy = "Admin";
         sub.ReviewedAt = DateTime.UtcNow;
         sub.Entries = entity.Entries;
+
+        // React on the original Discord message
+        if (entity.DiscordMessageId.HasValue)
+        {
+            var ttForReaction = await db.BingoTeamTiles.FirstOrDefaultAsync(tt => tt.Id == entity.BingoTeamTileId);
+            if (ttForReaction?.DiscordThreadId != null)
+            {
+                var emoji = newStatus == SubmissionStatus.Approved ? "✅" : "❌";
+                await Discord.AddReaction(ttForReaction.DiscordThreadId.Value, entity.DiscordMessageId.Value, emoji);
+            }
+        }
+
+        if (newStatus == SubmissionStatus.Approved)
+        {
+            // Check for tile/line completion notifications
+            var teamTile = await db.BingoTeamTiles
+                .Include(tt => tt.Tile).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+                .Include(tt => tt.Submissions).ThenInclude(s => s.Entries)
+                .Include(tt => tt.Team)
+                .FirstOrDefaultAsync(tt => tt.Id == entity.BingoTeamTileId);
+
+            if (teamTile != null)
+            {
+                var tile = teamTile.Tile;
+                var team = teamTile.Team;
+                var approved = teamTile.GetApprovedSubmissions();
+
+                if (tile.HasRequirements && tile.IsComplete(approved))
+                {
+                    var approvedWithout = approved.Where(s => s.Id != entity.Id);
+                    if (!tile.IsComplete(approvedWithout))
+                    {
+                        await Discord.NotifyTileComplete(teamTile, tile);
+                        await Discord.NotifyTeamChannel(team, $"🎉 **{tile.Title}** tile completed! (+{tile.Points} pts)");
+
+                        // Check for line/board completions
+                        var ev = await db.BingoEvents
+                            .Include(e => e.Tiles).ThenInclude(t => t.RequirementGroups).ThenInclude(g => g.Options).ThenInclude(o => o.Requirements)
+                            .Include(e => e.Tiles).ThenInclude(t => t.TeamTiles).ThenInclude(tt => tt.Submissions).ThenInclude(s => s.Entries)
+                            .FirstOrDefaultAsync(e => e.Id == tile.BingoEventId);
+
+                        if (ev != null && ev.LineBonusPoints > 0)
+                        {
+                            var size = ev.BoardSize;
+                            var completedPositions = new HashSet<int>();
+                            foreach (var tt in ev.Tiles.SelectMany(t => t.TeamTiles).Where(tt => tt.BingoTeamId == team.Id))
+                            {
+                                var t = ev.Tiles.First(x => x.Id == tt.BingoTileId);
+                                if (t.HasRequirements && t.IsComplete(tt.GetApprovedSubmissions()))
+                                    completedPositions.Add(t.Position);
+                            }
+
+                            var prevPositions = new HashSet<int>(completedPositions);
+                            prevPositions.Remove(tile.Position);
+
+                            var newLines = new List<string>();
+                            for (int r = 0; r < size; r++)
+                                if (Enumerable.Range(0, size).All(c => completedPositions.Contains(r * size + c))
+                                    && !Enumerable.Range(0, size).All(c => prevPositions.Contains(r * size + c)))
+                                    newLines.Add($"Row {r + 1}");
+                            for (int c = 0; c < size; c++)
+                                if (Enumerable.Range(0, size).All(r => completedPositions.Contains(r * size + c))
+                                    && !Enumerable.Range(0, size).All(r => prevPositions.Contains(r * size + c)))
+                                    newLines.Add($"Column {c + 1}");
+                            if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + i))
+                                && !Enumerable.Range(0, size).All(i => prevPositions.Contains(i * size + i)))
+                                newLines.Add("Diagonal (↘)");
+                            if (Enumerable.Range(0, size).All(i => completedPositions.Contains(i * size + (size - 1 - i)))
+                                && !Enumerable.Range(0, size).All(i => prevPositions.Contains(i * size + (size - 1 - i))))
+                                newLines.Add("Diagonal (↙)");
+
+                            foreach (var line in newLines)
+                                await Discord.NotifyTeamChannel(team, $"🏆 **{line} complete!** (+{ev.LineBonusPoints} bonus pts)");
+
+                            var totalTiles = ev.Tiles.Count(t => t.HasRequirements);
+                            if (totalTiles > 0 && completedPositions.Count == totalTiles && prevPositions.Count < totalTiles)
+                                await Discord.NotifyTeamChannel(team, $"👑 **FULL BOARD COMPLETE!** Every tile complete! Now go touch some grass 👑");
+                        }
+                    }
+                }
+            }
+        }
+
         StateHasChanged();
     }
 
@@ -461,6 +555,40 @@
     {
         await OnUpdate.InvokeAsync(draft);
         _editing = false;
+    }
+
+    private async Task CreateChannelForTeam(BingoTeam team)
+    {
+        _discordBusy = true;
+        _discordStatus = $"Creating channel for {team.Name}...";
+        StateHasChanged();
+
+        try
+        {
+            var channelId = await Discord.CreateBingoTeamChannel(team);
+            if (channelId.HasValue)
+            {
+                await using var db = await DbFactory.CreateDbContextAsync();
+                var dbTeam = await db.BingoTeams.FindAsync(team.Id);
+                if (dbTeam != null) dbTeam.DiscordChannelId = channelId.Value;
+                team.DiscordChannelId = channelId.Value;
+                await db.SaveChangesAsync();
+                _discordStatus = $"Created channel for {team.Name}.";
+            }
+            else
+            {
+                _discordStatus = $"Failed to create channel for {team.Name}.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _discordStatus = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _discordBusy = false;
+            StateHasChanged();
+        }
     }
 
     private async Task CreateThreadsForTeam(BingoTeam team)
