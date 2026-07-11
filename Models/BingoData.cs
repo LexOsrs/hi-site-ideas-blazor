@@ -276,48 +276,102 @@ public static class BingoConstants
                 Tiles = tiles,
                 Teams = [shooters, newts, planking, whiteLights, omegasus, navigators, papis],
             },
+            // 3x3 showcase — demonstrates all requirement types
             new()
             {
-                Title = "Test Bingo",
-                Description = "A small 2x2 bingo for testing.",
-                BoardSize = 2,
+                Title = "Mini Bingo",
+                Description = "A 3x3 showcase of different tile types.",
+                BoardSize = 3,
                 Status = BingoEventStatus.Active,
                 Published = true,
+                LineBonusPoints = 25,
                 StartsAt = DateTime.UtcNow,
-                EndsAt = DateTime.UtcNow.AddDays(14),
+                EndsAt = DateTime.UtcNow.AddDays(30),
                 Tiles =
                 [
+                    // Simple single item (All, 1 req)
                     new()
                     {
-                        Position = 0, Title = "Fire Cape", Points = 10, ImageUrl = Wiki("Fire cape"),
-                        Description = "Obtain a Fire Cape.",
-                        RequirementGroups = [All("Requirements", ("Fire Cape", 1))],
+                        Position = 0, Title = "Dragon hunter wand", Points = 16, ImageUrl = Wiki("Dragon hunter wand"),
+                        Description = "Obtain a Dragon hunter wand.",
+                        RequirementGroups = [All("Requirements", ("Dragon hunter wand", 1))],
                     },
+                    // Checklist of specific items (All, multiple reqs)
                     new()
                     {
-                        Position = 1, Title = "Barrows Items", Points = 20, ImageUrl = Wiki("Dharok's greataxe"),
-                        Description = "Get 3 items from the same Barrows set.",
+                        Position = 1, Title = "Soulreaper axe", Points = 117, ImageUrl = Wiki("Soulreaper axe"),
+                        Description = "Obtain the items required to create a Soulreaper axe from scratch as a team.\n\nRequired items:\nEye of the duke\nLeviathan's lure\nExecutioner's axe head\nSiren's staff",
+                        RequirementGroups = [All("Requirements", ("Eye of the duke", 1), ("Leviathan's lure", 1), ("Executioner's axe head", 1), ("Siren's staff", 1))],
+                    },
+                    // Large count (All, 1 big number)
+                    new()
+                    {
+                        Position = 2, Title = "Farming Contracts", Points = 125, ImageUrl = Wiki("Seed pack"),
+                        Description = "Complete 250 farming contracts as a team.",
+                        RequirementGroups = [All("Requirements", ("Contracts", 250))],
+                    },
+                    // OR paths with different costs (OneOf with coupled reqs)
+                    new()
+                    {
+                        Position = 3, Title = "Torva", Points = 49, ImageUrl = Wiki("Torva full helm"),
+                        Description = "Obtain any piece of Torva and the corresponding amount of Bandosian components to repair it as a team.\n\nEligible uniques:\nTorva full helm (damaged) - needs 1 component\nTorva platebody (damaged) - needs 3 components\nTorva platelegs (damaged) - needs 2 components\nBandos chestplate - 3 components\nBandos tassets - 2 components",
                         RequirementGroups =
                         [
-                            OneOf("Barrows set", ("Ahrim's", [("Ahrim's items", 3)]),
-                                                 ("Dharok's", [("Dharok's items", 3)]),
-                                                 ("Guthan's", [("Guthan's items", 3)]),
-                                                 ("Karil's", [("Karil's items", 3)]),
-                                                 ("Torag's", [("Torag's items", 3)]),
-                                                 ("Verac's", [("Verac's items", 3)])),
+                            OneOf("Torva path", ("Helm path", [("Torva full helm (damaged)", 1), ("Bandosian components", 1)]),
+                                                ("Platebody path", [("Torva platebody (damaged)", 1), ("Bandosian components", 3)]),
+                                                ("Platelegs path", [("Torva platelegs (damaged)", 1), ("Bandosian components", 2)])),
                         ],
                     },
+                    // AND(OR, OR) — pick one from each category
                     new()
                     {
-                        Position = 2, Title = "100 Slayer Tasks", Points = 15, ImageUrl = Wiki("Slayer helmet (i)"),
-                        Description = "Complete 100 Slayer tasks.",
-                        RequirementGroups = [All("Requirements", ("Slayer tasks", 100))],
+                        Position = 4, Title = "Perilous Barrows", Points = 28, ImageUrl = Wiki("Dharok's greataxe"),
+                        Description = "Obtain 4 items from the same Moons of Peril armour set and 4 items from the same Barrows armour set as a team. The items do not have to be unique.\n\nEligible Barrows sets: Ahrim's, Dharok's, Guthan's, Karil's, Torag's, Verac's\nEligible Moons sets: Blood moon, Blue moon, Eclipse moon",
+                        RequirementGroups =
+                        [
+                            OneOf("Barrows set", ("Ahrim's", [("Ahrim's items", 4)]),
+                                                 ("Dharok's", [("Dharok's items", 4)]),
+                                                 ("Guthan's", [("Guthan's items", 4)]),
+                                                 ("Karil's", [("Karil's items", 4)]),
+                                                 ("Torag's", [("Torag's items", 4)]),
+                                                 ("Verac's", [("Verac's items", 4)])),
+                            OneOf("Moons set", ("Eclipse moon", [("Eclipse moon items", 4)]),
+                                               ("Blood moon", [("Blood moon items", 4)]),
+                                               ("Blue moon", [("Blue moon items", 4)])),
+                        ],
                     },
+                    // Multiple independent OR groups
                     new()
                     {
-                        Position = 3, Title = "Zenyte Jewellery", Points = 25, ImageUrl = Wiki("Zenyte shard"),
-                        Description = "Obtain 4 Zenyte shards and 4 Onyx to craft a full set of Zenyte jewellery.",
-                        RequirementGroups = [All("Requirements", ("Zenyte shard", 4), ("Onyx", 4))],
+                        Position = 5, Title = "Upgraded Rev. Weapon", Points = 110, ImageUrl = Wiki("Craw's bow"),
+                        Description = "Obtain the items required to create an upgraded revenant weapon from scratch as a team.\n\nEligible uniques:\nCraw's bow (u) + Fangs of venenatis\nThammaron's sceptre (u) + Skull of vet'ion\nViggora's chainmace (u) + Claws of callisto",
+                        RequirementGroups =
+                        [
+                            OneOf("Weapon path", ("Craw's bow", [("Craw's bow (u)", 1), ("Fangs of venenatis", 1)]),
+                                                 ("Thammaron's sceptre", [("Thammaron's sceptre (u)", 1), ("Skull of vet'ion", 1)]),
+                                                 ("Viggora's chainmace", [("Viggora's chainmace (u)", 1), ("Claws of callisto", 1)])),
+                        ],
+                    },
+                    // Mixed count items (All, different quantities)
+                    new()
+                    {
+                        Position = 6, Title = "Conflicted Rancour", Points = 70, ImageUrl = Wiki("Amulet of rancour"),
+                        Description = "Obtain the items required to create Confliction gauntlets from scratch and the items required to create an Amulet of rancour from scratch as a team.\n\nRequired items:\n2x Uncut onyx\n2x Zenyte shard\nMokhaiotl cloth\nAraxyte fang",
+                        RequirementGroups = [All("Requirements", ("Uncut onyx", 2), ("Zenyte shard", 2), ("Mokhaiotl cloth", 1), ("Araxyte fang", 1))],
+                    },
+                    // Specific items checklist (All, many 1-count reqs)
+                    new()
+                    {
+                        Position = 7, Title = "Mounted Heads", Points = 56, ImageUrl = Wiki("Vorkath's head"),
+                        Description = "Obtain every mountable head from bosses as a team.\n\nRequired items:\nAbyssal head (must be from an Unsired)\nAlchemical hydra heads\nKBD heads\nKQ head\nVorkath's head",
+                        RequirementGroups = [All("Requirements", ("Abyssal head", 1), ("Alchemical hydra heads", 1), ("KBD heads", 1), ("KQ head", 1), ("Vorkath's head", 1))],
+                    },
+                    // Simple count (All, 1 medium number)
+                    new()
+                    {
+                        Position = 8, Title = "Venator bow", Points = 20, ImageUrl = Wiki("Venator bow"),
+                        Description = "Obtain 5 Venator shards as a team.",
+                        RequirementGroups = [All("Requirements", ("Venator shards", 5))],
                     },
                 ],
                 Teams =
@@ -426,7 +480,7 @@ public static class BingoConstants
         // 7: Dragon hunter wand
         new()
         {
-            Position = 7, Title = "Dragon hunter wand", Points = 16, ImageUrl = Wiki("Dragon hunter lance"),
+            Position = 7, Title = "Dragon hunter wand", Points = 16, ImageUrl = Wiki("Dragon hunter wand"),
             Description = "Obtain a Dragon hunter wand.",
             RequirementGroups = [All("Requirements", ("Dragon hunter wand", 1))],
         },

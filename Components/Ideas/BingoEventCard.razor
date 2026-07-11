@@ -103,7 +103,16 @@
                                     <div class="pending-items-section">
                                         <div class="review-entry-row">
                                             <label style="font-size: 0.78rem; color: var(--text-dim); min-width: 70px">Credited to</label>
-                                            <input value="@sub.SubmittedBy" @onchange="v => sub.SubmittedBy = v.Value?.ToString() ?? sub.SubmittedBy" style="flex: 1" />
+                                            <select value="@sub.SubmittedBy" @onchange="v => sub.SubmittedBy = v.Value?.ToString() ?? sub.SubmittedBy" style="flex: 1">
+                                                @if (!team.Members.Any(m => m.Name == sub.SubmittedBy))
+                                                {
+                                                    <option value="@sub.SubmittedBy">@sub.SubmittedBy</option>
+                                                }
+                                                @foreach (var member in team.Members.OrderBy(m => m.Name))
+                                                {
+                                                    <option value="@member.Name" selected="@(member.Name == sub.SubmittedBy)">@member.Name</option>
+                                                }
+                                            </select>
                                         </div>
                                         @foreach (var entry in sub.Entries)
                                         {

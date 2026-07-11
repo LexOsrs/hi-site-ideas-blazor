@@ -18,21 +18,7 @@ public class DiscordService(IConfiguration config, ILogger<DiscordService> logge
         return ulong.TryParse(str, out var id) ? id : null;
     }
 
-    public async Task SendStartupMessage()
-    {
-        using var client = CreateClient();
-        if (client == null) return;
-
-        try
-        {
-            await client.SendMessageAsync(1060310256833527931, new MessageProperties()
-                .WithContent($"Hi-site started up ok — {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"));
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to send startup message to Discord");
-        }
-    }
+    public Task SendStartupMessage() => Task.CompletedTask;
 
     public async Task CreateGiveawayPost(Giveaway giveaway)
     {
@@ -113,9 +99,9 @@ public class DiscordService(IConfiguration config, ILogger<DiscordService> logge
 
             try
             {
-                // Post a message first, then create a thread from it
+                var content = BuildTileMessage(tile);
                 var msg = await client.SendMessageAsync(channelId, new MessageProperties()
-                    .WithContent($"**#{tile.Position + 1} — {tile.Title}** ({tile.Points} pts)\nPost screenshots here for moderator approval."));
+                    .WithContent(content));
 
                 var thread = await client.CreateGuildThreadAsync(channelId, msg.Id,
                     new GuildThreadFromMessageProperties(tile.Title));
@@ -183,6 +169,25 @@ public class DiscordService(IConfiguration config, ILogger<DiscordService> logge
         {
             logger.LogWarning(ex, "Failed to send team channel notification");
         }
+    }
+
+    private static string BuildTileMessage(BingoTile tile)
+    {
+        var lines = new List<string>
+        {
+            $"**{tile.Title}** — {tile.Points} pts",
+        };
+
+        if (!string.IsNullOrEmpty(tile.Description))
+        {
+            lines.Add("");
+            lines.Add(tile.Description);
+        }
+
+        lines.Add("");
+        lines.Add("Post your screenshots here — a moderator will approve them.");
+
+        return string.Join("\n", lines);
     }
 
     private static string BuildMessage(Giveaway giveaway, bool hasBoss)

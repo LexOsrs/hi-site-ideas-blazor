@@ -63,7 +63,6 @@
         : [];
 
     private string? ClosestName => RankedByCloseness.FirstOrDefault()?.Name;
-    private string? SecondName => RankedByCloseness.Skip(1).FirstOrDefault()?.Name;
 
     private double _min, _max, _range;
 
@@ -88,7 +87,6 @@
     {
         var classes = new List<string>();
         if (name == ClosestName) classes.Add("closest");
-        else if (name == SecondName) classes.Add("second");
         if (RandomWinners.Contains(name)) classes.Add("random-winner");
         if (name == HoveredName) classes.Add("hovered");
         return string.Join(" ", classes);
@@ -98,7 +96,6 @@
     {
         var classes = new List<string>();
         if (name == ClosestName) classes.Add("closest");
-        else if (name == SecondName) classes.Add("second");
         if (RandomWinners.Contains(name)) classes.Add("random-winner");
         if (name == HoveredName) classes.Add("hovered");
         return string.Join(" ", classes);

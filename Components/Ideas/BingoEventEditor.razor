@@ -141,18 +141,23 @@
 
     <!-- Tiles -->
     <div class="edit-prizes">
-        <h4>Board Tiles (@(_boardSize * _boardSize) tiles)</h4>
-        <div class="tile-editor-grid" style="grid-template-columns: repeat(@_boardSize, 1fr)">
+        <h4>Board Tiles (@(_boardSize * _boardSize) tiles) — click to edit</h4>
+        <div class="bingo-board" style="grid-template-columns: repeat(@_boardSize, 1fr)">
             @for (int i = 0; i < _boardSize * _boardSize; i++)
             {
                 var idx = i;
                 var tile = idx < _tiles.Count ? _tiles[idx] : null;
-                <button class="tile-editor-cell @(tile != null && !string.IsNullOrEmpty(tile.Title) ? "filled" : "") @(_editingTileIdx == idx ? "editing" : "")"
+                var hasTile = tile != null && !string.IsNullOrEmpty(tile.Title);
+                <button class="board-tile @(hasTile ? "" : "empty-tile") @(_editingTileIdx == idx ? "editing" : "")"
                         @onclick="() => EditTile(idx)">
-                    @if (tile != null && !string.IsNullOrEmpty(tile.Title))
+                    @if (hasTile)
                     {
-                        <span class="tile-editor-title">@tile.Title</span>
-                        <span class="tile-editor-pts">@tile.Points pt</span>
+                        <span class="tile-points">@tile!.Points pt</span>
+                        @if (!string.IsNullOrEmpty(tile.ImageUrl))
+                        {
+                            <img class="tile-image" src="@tile.ImageUrl" alt="@tile.Title" />
+                        }
+                        <span class="tile-title">@tile.Title</span>
                     }
                     else
                     {

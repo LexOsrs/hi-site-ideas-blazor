@@ -260,7 +260,17 @@
                                         <div class="review-actions">
                                             <div class="review-entry-row">
                                                 <label style="font-size: 0.78rem; color: var(--text-dim); min-width: 70px">Credited to</label>
-                                                <input value="@sub.SubmittedBy" @onchange="v => sub.SubmittedBy = v.Value?.ToString() ?? sub.SubmittedBy" style="flex: 1" />
+                                                @{ var teamMembers = GetTeamMembersForSubmission(sub); }
+                                                <select value="@sub.SubmittedBy" @onchange="v => sub.SubmittedBy = v.Value?.ToString() ?? sub.SubmittedBy" style="flex: 1">
+                                                    @if (!teamMembers.Contains(sub.SubmittedBy))
+                                                    {
+                                                        <option value="@sub.SubmittedBy">@sub.SubmittedBy</option>
+                                                    }
+                                                    @foreach (var name in teamMembers)
+                                                    {
+                                                        <option value="@name" selected="@(name == sub.SubmittedBy)">@name</option>
+                                                    }
+                                                </select>
                                             </div>
                                             @if (sub.Type == SubmissionType.Progress)
                                             {
@@ -437,6 +447,14 @@
         // Update in-memory
         sub.Entries = entity.Entries;
         _editingSubmissionId = null;
+    }
+
+    private List<string> GetTeamMembersForSubmission(BingoSubmission sub)
+    {
+        var teamTile = Tile.TeamTiles.FirstOrDefault(tt => tt.Submissions.Any(s => s.Id == sub.Id));
+        if (teamTile == null) return [];
+        var team = Event.Teams.FirstOrDefault(t => t.Id == teamTile.BingoTeamId);
+        return team?.Members.Select(m => m.Name).OrderBy(n => n).ToList() ?? [];
     }
 
     private void AddEntryToSubmission(BingoSubmission sub)
